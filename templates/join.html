@@ -515,6 +515,84 @@ body.light-mode::before {
   <div class="splash-dots"><span></span><span></span><span></span></div>
 </div>
 
+<!-- ═══ PERMISSIONS SCREEN ═══ -->
+<div id="screen-perms" style="
+  position:fixed;inset:0;z-index:9000;
+  background:#0f172a;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:28px 20px;
+">
+  <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:0;align-items:center">
+    <!-- Icon -->
+    <div style="
+      width:72px;height:72px;border-radius:20px;
+      background:rgba(59,130,246,.12);border:1.5px solid rgba(59,130,246,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-size:34px;margin-bottom:20px;
+    ">📱</div>
+
+    <div style="font-family:var(--fhead);font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px;text-align:center">
+      نحتاج إذنك
+    </div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;line-height:1.7;margin-bottom:28px;font-weight:500">
+      عشان التطبيق يشتغل صح محتاجين إذن الموقع والإشعارات
+    </div>
+
+    <!-- GPS Permission -->
+    <div id="pp-gps" onclick="ppRequestGPS()" style="
+      width:100%;background:var(--card);border:1.5px solid var(--border);
+      border-radius:16px;padding:18px 16px;margin-bottom:10px;
+      display:flex;align-items:center;gap:14px;cursor:pointer;
+      transition:.2s;
+    ">
+      <div style="
+        width:44px;height:44px;border-radius:12px;flex-shrink:0;
+        background:rgba(59,130,246,.12);
+        display:flex;align-items:center;justify-content:center;font-size:22px;
+      ">📍</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:3px">الموقع (GPS)</div>
+        <div id="pp-gps-status" style="font-size:12px;color:var(--muted);font-weight:600">اضغط للسماح</div>
+      </div>
+      <div id="pp-gps-icon" style="font-size:22px">⏳</div>
+    </div>
+
+    <!-- Notifications Permission -->
+    <div id="pp-notif" onclick="ppRequestNotif()" style="
+      width:100%;background:var(--card);border:1.5px solid var(--border);
+      border-radius:16px;padding:18px 16px;margin-bottom:24px;
+      display:flex;align-items:center;gap:14px;cursor:pointer;
+      transition:.2s;
+    ">
+      <div style="
+        width:44px;height:44px;border-radius:12px;flex-shrink:0;
+        background:rgba(59,130,246,.12);
+        display:flex;align-items:center;justify-content:center;font-size:22px;
+      ">🔔</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:3px">الإشعارات</div>
+        <div id="pp-notif-status" style="font-size:12px;color:var(--muted);font-weight:600">اضغط للسماح</div>
+      </div>
+      <div id="pp-notif-icon" style="font-size:22px">⏳</div>
+    </div>
+
+    <button id="pp-continue-btn" onclick="ppContinue()" style="
+      width:100%;padding:17px;border:0;border-radius:14px;
+      background:var(--primary);color:#fff;
+      font-family:var(--far);font-size:17px;font-weight:800;
+      cursor:pointer;letter-spacing:.5px;
+      box-shadow:0 4px 20px rgba(59,130,246,.35);
+      transition:.18s;
+    ">متابعة</button>
+
+    <button onclick="ppSkip()" style="
+      background:none;border:none;color:var(--muted2);
+      font-family:var(--far);font-size:13px;font-weight:600;
+      cursor:pointer;margin-top:14px;padding:6px;
+    ">تخطي الآن</button>
+  </div>
+</div>
+
 <!-- ═══ WELCOME TOAST ═══ -->
 <div id="welcome-toast">
   <div class="wt-emoji">👋</div>
@@ -1500,14 +1578,104 @@ if(window.socket){
   });
 }
 
+/* ══════════════════════════════════════
+   PERMISSIONS SCREEN LOGIC
+══════════════════════════════════════ */
+var _ppGpsOk = false, _ppNotifOk = false;
+
+function ppUpdateGPS(state) {
+  var el = document.getElementById('pp-gps');
+  var st = document.getElementById('pp-gps-status');
+  var ic = document.getElementById('pp-gps-icon');
+  if (state === 'granted') {
+    _ppGpsOk = true;
+    el.style.borderColor = 'rgba(34,197,94,.4)';
+    el.style.background = 'rgba(34,197,94,.07)';
+    el.style.pointerEvents = 'none';
+    st.textContent = '✅ تم السماح';
+    st.style.color = '#22c55e';
+    ic.textContent = '✅';
+  } else if (state === 'denied') {
+    el.style.borderColor = 'rgba(239,68,68,.3)';
+    st.textContent = '❌ محظور — فعّله من الإعدادات';
+    st.style.color = '#ef4444';
+    ic.textContent = '❌';
+  }
+}
+
+function ppUpdateNotif(state) {
+  var el = document.getElementById('pp-notif');
+  var st = document.getElementById('pp-notif-status');
+  var ic = document.getElementById('pp-notif-icon');
+  if (state === 'granted') {
+    _ppNotifOk = true;
+    el.style.borderColor = 'rgba(34,197,94,.4)';
+    el.style.background = 'rgba(34,197,94,.07)';
+    el.style.pointerEvents = 'none';
+    st.textContent = '✅ تم السماح';
+    st.style.color = '#22c55e';
+    ic.textContent = '✅';
+  } else if (state === 'denied') {
+    el.style.borderColor = 'rgba(239,68,68,.3)';
+    st.textContent = '❌ محظور — فعّله من الإعدادات';
+    st.style.color = '#ef4444';
+    ic.textContent = '❌';
+  }
+}
+
+function ppRequestGPS() {
+  if (!navigator.geolocation) return;
+  document.getElementById('pp-gps-status').textContent = '⏳ جاري الطلب...';
+  navigator.geolocation.getCurrentPosition(
+    function() { ppUpdateGPS('granted'); },
+    function(e) { ppUpdateGPS(e.code === 1 ? 'denied' : 'error'); },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function ppRequestNotif() {
+  if (!window.Notification) return;
+  document.getElementById('pp-notif-status').textContent = '⏳ جاري الطلب...';
+  Notification.requestPermission().then(function(p) {
+    ppUpdateNotif(p === 'granted' ? 'granted' : 'denied');
+  });
+}
+
+function ppContinue() {
+  document.getElementById('screen-perms').style.display = 'none';
+  localStorage.setItem('rwa7el_perms_asked', '1');
+}
+
+function ppSkip() {
+  document.getElementById('screen-perms').style.display = 'none';
+  localStorage.setItem('rwa7el_perms_asked', '1');
+}
+
 /* ── SPLASH ── */
 (function(){
   var splash = document.getElementById('splash');
   var stored = localStorage.getItem('rwa7el_driver');
+  var permsAsked = localStorage.getItem('rwa7el_perms_asked');
   var delay = stored ? 700 : 1400;
   setTimeout(function(){
     splash.classList.add('hide');
-    setTimeout(function(){ splash.style.display='none'; }, 500);
+    setTimeout(function(){
+      splash.style.display='none';
+      // أول مرة — اعرض permissions screen
+      if (!permsAsked) {
+        var ps = document.getElementById('screen-perms');
+        ps.style.display = 'flex';
+        // تحقق من الحالة الحالية
+        if (navigator.permissions) {
+          navigator.permissions.query({name:'geolocation'}).then(function(r){
+            if (r.state === 'granted') ppUpdateGPS('granted');
+          }).catch(function(){});
+        }
+        if (window.Notification && Notification.permission === 'granted') {
+          ppUpdateNotif('granted');
+        }
+      }
+    }, 500);
   }, delay);
 })();
 
