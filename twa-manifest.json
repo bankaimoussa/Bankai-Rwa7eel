@@ -1,6 +1,6 @@
 {
-  "packageId": "dev.ngrok_free.waking_expand_manhunt.twa",
-  "host": "waking-expand-manhunt.ngrok-free.dev",
+  "packageId": "com.bankai.rwa7el",
+  "host": "bankai-rwa7eel-production.up.railway.app",
   "name": "BaNkAi",
   "launcherName": "BaNkAi",
   "display": "fullscreen",
@@ -13,18 +13,18 @@
   "backgroundColor": "#0F172A",
   "enableNotifications": true,
   "startUrl": "/join",
-  "iconUrl": "http://localhost:8080/icon-192.png",
-  "maskableIconUrl": "http://localhost:8080/icon-192.png",
+  "iconUrl": "https://bankai-rwa7eel-production.up.railway.app/icon-192.png",
+  "maskableIconUrl": "https://bankai-rwa7eel-production.up.railway.app/icon-192.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "C:\\Users\\modym\\Downloads\\rawhel\\mo\\android.keystore",
     "alias": "android"
   },
-  "appVersionName": "1",
-  "appVersionCode": 1,
+  "appVersionName": "2",
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
-  "webManifestUrl": "https://waking-expand-manhunt.ngrok-free.dev/manifest.json",
+  "webManifestUrl": "https://bankai-rwa7eel-production.up.railway.app/manifest.json",
   "fallbackType": "customtabs",
   "features": {
     "locationDelegation": {
@@ -37,15 +37,19 @@
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
-  "fullScopeUrl": "https://waking-expand-manhunt.ngrok-free.dev/",
+  "fullScopeUrl": "https://bankai-rwa7eel-production.up.railway.app/",
   "minSdkVersion": 21,
   "orientation": "portrait",
-  "fingerprints": [],
+  "fingerprints": [
+    {
+      "value": "7C:75:C5:C6:59:D7:C3:5C:8B:F6:61:9B:D6:C6:95:2B:EC:54:F5:8A:D6:54:97:EF:43:6A:A2:FE:88:1C:A5:29"
+    }
+  ],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "protocolHandlers": [],
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1"
+  "appVersion": "2"
 }
