@@ -116,9 +116,15 @@ self.addEventListener("push", (event) => {
 
   const configs = {
     your_turn: {
-      title:   "🚨 دورك دلوقتي!",
-      body:    data.body || "الأدمن طالبك — استعد فوراً!",
-      vibrate: [400,100,400,100,400,100,400,100,400,100,400,100,400,100,400,100,400,100,400,100],
+      title:   "🚨🚨 دورك دلوقتي!! 🚨🚨",
+      body:    data.body || "⚠️ الأدمن طالبك — استعد فوراً! لا تتأخر!",
+      vibrate: [
+        500,50,500,50,500,50,500,50,500,50,
+        500,50,500,50,500,50,500,50,500,50,
+        500,50,500,50,500,50,500,50,500,50,
+        500,50,500,50,500,50,500,50,500,50,
+        500,50,500,50,500,50,500,50,500,50
+      ],
       requireInteraction: true,
       silent:  false,
       actions: [
@@ -178,7 +184,7 @@ self.addEventListener("push", (event) => {
         client.postMessage({ type: "PUSH_RECEIVED", notifType: type });
       });
 
-      return self.registration.showNotification(cfg.title, {
+      await self.registration.showNotification(cfg.title, {
         body:               cfg.body,
         icon:               "/static/icon-192.png",
         badge:              "/static/icon-192.png",
@@ -190,6 +196,34 @@ self.addEventListener("push", (event) => {
         actions:            cfg.actions,
         data: { url: data.url || "/join", type: type }
       });
+
+      // لو your_turn — كرر الـ vibration كل ثانية لمدة 10 ثواني
+      if (type === "your_turn") {
+        let count = 0;
+        const maxRepeats = 10;
+        const vibrateLoop = setInterval(async () => {
+          count++;
+          // لو الإشعار لسه موجود، كرر الـ vibration
+          const notifs = await self.registration.getNotifications({ tag: uniqueTag });
+          if (notifs.length > 0 && count < maxRepeats) {
+            // أعد إظهار الإشعار بـ renotify عشان يعيد الـ vibration
+            await self.registration.showNotification(cfg.title, {
+              body:               cfg.body,
+              icon:               "/static/icon-192.png",
+              badge:              "/static/icon-192.png",
+              vibrate:            [500,50,500,50,500,50,500,50,500,50,500,50,500,50,500,50,500,50,500,50],
+              requireInteraction: true,
+              silent:             false,
+              tag:                uniqueTag,
+              renotify:           true,
+              actions:            cfg.actions,
+              data: { url: data.url || "/join", type: type }
+            });
+          } else {
+            clearInterval(vibrateLoop);
+          }
+        }, 1000);
+      }
     })()
   );
 
