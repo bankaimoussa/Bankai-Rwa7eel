@@ -545,10 +545,12 @@ def handle_location(data):
         db.execute("UPDATE drivers SET lat=?, lng=? WHERE name=?", (lat, lng, name))
         db.commit()
         db.close()
+        dist_m = data.get('dist_m')
         emit('location_updated', {
             'name': name, 'lat': lat, 'lng': lng,
             'accuracy': accuracy, 'heading': heading,
-            'speed': speed, 'altitude': altitude, 'ts': ts
+            'speed': speed, 'altitude': altitude,
+            'dist_m': dist_m, 'ts': ts
         }, broadcast=True)
 
 @socketio.on('request_battery_from_all')

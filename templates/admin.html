@@ -1093,6 +1093,18 @@ function updateDistBadge(name, lat, lng) {
   });
 }
 
+// نفس الـ updateDistBadge بس بياخد dist_m جاهز بدل lat/lng
+function updateDistBadgeDirect(name, m) {
+  document.querySelectorAll(`[data-driver-name="${CSS.escape(name)}"] .dist-badge`).forEach(el => {
+    let cls, label;
+    if (m < 500)       { cls = 'near'; label = m < 50 ? 'في الفرع' : Math.round(m) + ' م'; }
+    else if (m < 2000) { cls = 'mid';  label = Math.round(m) + ' م'; }
+    else               { cls = 'far';  label = (m/1000).toFixed(1) + ' كم'; }
+    el.className = `dist-badge ${cls}`;
+    el.textContent = '📍 ' + label;
+  });
+}
+
 function batIcon(level) {
   if (level == null) return '🔋';
   if (level >= 80) return '🔋';
@@ -1740,7 +1752,14 @@ async function exportFines() {
 
 // 📍 تحديث مسافة المندوب عن الفرع لحظياً بدون re-render
 socket.on('location_updated', function(data) {
-  if (data && data.name) updateDistBadge(data.name, data.lat, data.lng);
+  if (!data || !data.name) return;
+  // استخدم dist_m الجاهز من الـ driver (محسوب بالفعل في join.html)
+  // لو مش موجود، ارجع للـ haversine fallback
+  if (data.dist_m != null) {
+    updateDistBadgeDirect(data.name, data.dist_m);
+  } else {
+    updateDistBadge(data.name, data.lat, data.lng);
+  }
 });
 
 // 🔋 تحديث نسبة شحن المندوب لحظياً بدون re-render

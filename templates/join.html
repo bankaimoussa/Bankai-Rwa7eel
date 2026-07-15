@@ -779,11 +779,18 @@ function updateGeofenceUI(distM) {
 
 /* ── GPS THROTTLE ── */
 let _lastEmitTs = 0;
-const GPS_MIN_INTERVAL = 5000; // بعت للسيرفر كل 5 ثواني على الأقل
+const GPS_MIN_INTERVAL = 2000; // بعت للسيرفر كل 2 ثانية على الأقل
+const GPS_MAX_ACCURACY = 50;   // تجاهل الـ fix لو الـ accuracy أضعف من 50م
 
 function onGPSPosition(pos) {
   const {latitude:lat, longitude:lng, accuracy, heading, speed, altitude} = pos.coords;
   lastLat = lat; lastLng = lng;
+
+  // لو الـ accuracy ضعيف، حدّث الـ widget بس ومتحسبش مسافة ومتبعتش للسيرفر
+  if (accuracy > GPS_MAX_ACCURACY) {
+    if (window._gpsWidget) window._gpsWidget.textContent = `📍 متصل • دقة ضعيفة (${Math.round(accuracy)}م)`;
+    return;
+  }
 
   const distM = haversineM(lat, lng, BRANCH_LAT, BRANCH_LNG);
 
