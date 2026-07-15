@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>✏️ Text Editor — BANKAI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #1e293b;
+  }
+  .header h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fbbf24;
+    letter-spacing: 1px;
+  }
+  .header span { color: #64748b; font-size: 0.85rem; }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: 1px solid #1e293b;
+    background: #1e293b;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: #1d4ed8;
+    color: #fff;
+    border-color: #1d4ed8;
+  }
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .search-bar input {
+    flex: 1;
+    padding: 9px 14px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    outline: none;
+    direction: auto;
+  }
+  .search-bar input:focus { border-color: #3b82f6; }
+  .items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: calc(100vh - 240px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .text-item {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.2s;
+  }
+  .text-item.modified {
+    border-color: #f59e0b;
+    background: #1a1a0a;
+  }
+  .text-item label {
+    font-size: 0.72rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .text-item input {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed #334155;
+    color: #e2e8f0;
+    font-size: 0.95rem;
+    padding: 4px 0;
+    outline: none;
+    width: 100%;
+    direction: auto;
+    transition: border-color 0.2s;
+  }
+  .text-item input:focus { border-bottom-color: #3b82f6; }
+  .text-item input.changed { color: #fbbf24; }
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #0f172a;
+    border-top: 1px solid #1e293b;
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-save {
+    background: #16a34a;
+    color: #fff;
+    flex: 1;
+  }
+  .btn-save:hover { background: #15803d; }
+  .btn-save:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+  .btn-reset {
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+  }
+  .status-msg {
+    font-size: 0.82rem;
+    color: #64748b;
+    flex: 1;
+    text-align: center;
+  }
+  .status-msg.ok { color: #22c55e; }
+  .status-msg.err { color: #ef4444; }
+  .badge-count {
+    background: #f59e0b;
+    color: #000;
+    border-radius: 99px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-right: auto;
+  }
+  .loader {
+    text-align: center;
+    color: #475569;
+    padding: 40px;
+    font-size: 0.9rem;
+  }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: #0f172a; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 99px; }
+  /* push list above bottom bar */
+  .items-list { padding-bottom: 70px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>✏️ BANKAI Text Editor</h1>
+    <span>تعديل النصوص في صفحة الجوين والأدمن</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('join')">🚗 Join Page</button>
+  <button class="tab" onclick="switchTab('admin')">⚙️ Admin Page</button>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="🔍 ابحث عن نص..." oninput="filterItems()">
+  <span class="badge-count" id="modCount" style="display:none">0 تعديل</span>
+</div>
+
+<div class="items-list" id="itemsList">
+  <div class="loader">⏳ جاري التحميل...</div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn btn-reset" onclick="resetAll()">↩️ تراجع</button>
+  <span class="status-msg" id="statusMsg"></span>
+  <button class="btn btn-save" id="saveBtn" onclick="saveChanges()" disabled>💾 حفظ</button>
+</div>
+
+<script>
+// ── Config ──
+const PW = new URLSearchParams(location.search).get('pw') || '';
+const HEADERS = { 'Content-Type': 'application/json', 'X-Admin-PW': PW };
+
+let currentTab = 'join';
+let originalTexts = [];  // [{id, original, selector}]
+let items = [];          // same, with .current
+
+// ── Load ──
+async function loadTab(tab) {
+  const list = document.getElementById('itemsList');
+  list.innerHTML = '<div class="loader">⏳ جاري التحميل...</div>';
+  document.getElementById('searchInput').value = '';
+  
+  try {
+    const res = await fetch(`/api/text-editor/get?file=${tab}&pw=${PW}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    
+    const texts = extractTexts(data.html);
+    originalTexts = texts;
+    items = texts.map(t => ({ ...t, current: t.original }));
+    renderItems(items);
+  } catch(e) {
+    list.innerHTML = `<div class="loader" style="color:#ef4444">❌ ${e.message}</div>`;
+  }
+}
+
+// ── Extract text nodes from HTML ──
+function extractTexts(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  
+  const results = [];
+  const seen = new Set();
+  
+  // Walk all nodes
+  const walker = document.createTreeWalker(
+    doc.body || doc.documentElement,
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+  
+  let node;
+  let idx = 0;
+  while ((node = walker.nextNode())) {
+    const text = node.textContent.trim();
+    
+    // Skip empty, pure whitespace, script/style content, template literals
+    if (!text) continue;
+    if (text.length < 2) continue;
+    if (/^[\d\s\W]+$/.test(text) && text.length < 4) continue;
+    
+    const parent = node.parentElement;
+    if (!parent) continue;
+    const tagName = parent.tagName.toLowerCase();
+    if (['script', 'style', 'head'].includes(tagName)) continue;
+    
+    // Skip if looks like code
+    if (/[{}\[\]();=>]/.test(text) && text.length > 10) continue;
+    
+    // Deduplicate
+    if (seen.has(text)) continue;
+    seen.add(text);
+    
+    // Get a readable label from parent context
+    const label = getLabel(parent, text);
+    
+    results.push({
+      id: idx++,
+      original: text,
+      label: label,
+    });
+  }
+  
+  // Also get meta/title content
+  const title = doc.querySelector('title');
+  if (title && !seen.has(title.textContent.trim())) {
+    results.unshift({ id: idx++, original: title.textContent.trim(), label: '📄 Title (browser tab)' });
+  }
+  const appTitle = doc.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (appTitle && !seen.has(appTitle.getAttribute('content'))) {
+    results.unshift({ id: idx++, original: appTitle.getAttribute('content'), label: '📱 PWA App Name' });
+  }
+  
+  return results;
+}
+
+function getLabel(el, text) {
+  // Try id
+  if (el.id) return `#${el.id}`;
+  // Try class
+  if (el.className && typeof el.className === 'string') {
+    const cls = el.className.trim().split(/\s+/)[0];
+    if (cls) return `.${cls}`;
+  }
+  // Tag
+  return `<${el.tagName.toLowerCase()}>`;
+}
+
+// ── Render ──
+function renderItems(list) {
+  const container = document.getElementById('itemsList');
+  if (!list.length) {
+    container.innerHTML = '<div class="loader">لا توجد نتائج</div>';
+    return;
+  }
+  
+  container.innerHTML = list.map(item => `
+    <div class="text-item ${item.current !== item.original ? 'modified' : ''}" id="item-${item.id}">
+      <label>${escHtml(item.label)}</label>
+      <input
+        type="text"
+        value="${escAttr(item.current)}"
+        data-original="${escAttr(item.original)}"
+        data-id="${item.id}"
+        oninput="onItemChange(this)"
+        dir="auto"
+      >
+    </div>
+  `).join('');
+  
+  updateModCount();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(s) {
+  return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+}
+
+// ── Events ──
+function onItemChange(input) {
+  const id = +input.dataset.id;
+  const original = input.dataset.original;
+  const val = input.value;
+  
+  items[id].current = val;
+  const changed = val !== original;
+  input.classList.toggle('changed', changed);
+  input.closest('.text-item').classList.toggle('modified', changed);
+  updateModCount();
+}
+
+function filterItems() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = q ? items.filter(i => i.original.toLowerCase().includes(q) || i.label.toLowerCase().includes(q)) : items;
+  renderItems(filtered);
+}
+
+function updateModCount() {
+  const count = items.filter(i => i.current !== i.original).length;
+  const badge = document.getElementById('modCount');
+  const btn = document.getElementById('saveBtn');
+  if (count > 0) {
+    badge.textContent = `${count} تعديل`;
+    badge.style.display = '';
+    btn.disabled = false;
+  } else {
+    badge.style.display = 'none';
+    btn.disabled = true;
+  }
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'join') || (i === 1 && tab === 'admin'));
+  });
+  loadTab(tab);
+}
+
+function resetAll() {
+  items.forEach(i => i.current = i.original);
+  filterItems();
+  setStatus('', '');
+}
+
+// ── Save ──
+async function saveChanges() {
+  const replacements = items
+    .filter(i => i.current !== i.original && i.current.trim())
+    .map(i => ({ old: i.original, new: i.current }));
+  
+  if (!replacements.length) return;
+  
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ جاري الحفظ...';
+  
+  try {
+    const res = await fetch(`/api/text-editor/save?pw=${PW}`, {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({ file: currentTab, replacements })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    
+    setStatus(`✅ تم حفظ ${data.changed} تعديل بنجاح!`, 'ok');
+    // Reload to confirm
+    await loadTab(currentTab);
+  } catch(e) {
+    setStatus(`❌ خطأ: ${e.message}`, 'err');
+    btn.disabled = false;
+  }
+  btn.textContent = '💾 حفظ';
+}
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = 'status-msg ' + cls;
+  if (msg) setTimeout(() => { el.textContent = ''; el.className = 'status-msg'; }, 4000);
+}
+
+// ── Init ──
+if (!PW) {
+  document.body.innerHTML = `<div style="text-align:center;padding:60px;color:#ef4444">
+    ❌ محتاج كلمة السر<br><br>
+    <code style="color:#94a3b8">/text-editor?pw=YOUR_PASSWORD</code>
+  </div>`;
+} else {
+  loadTab('join');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,2603 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rwa7el Bankai — Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Kufi+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* ── CALM, FOCUSED COLOR SYSTEM ── */
+:root { 
+  --bg-main: #f1f5f9; 
+  --bg-panel: #ffffff; 
+  --bg-col: #f8fafc;
+  --card: #ffffff; 
+  --border: #e2e8f0; 
+  --border-focus: #94a3b8;
+  --text-main: #0f172a; 
+  --text-muted: #64748b; 
+  
+  /* Primary = calm slate/navy instead of bright blue. One accent, used sparingly. */
+  --primary: #334155; 
+  --primary-hover: #1e293b; 
+  --primary-gradient: #334155;
+  --primary-hover-gradient: #1e293b;
+  --primary-light: #f1f5f9;
+  
+  /* Single danger / success accent — used only where it actually matters */
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 8px 16px rgba(15, 23, 42, 0.08);
+  --shadow-btn: 0 1px 3px rgba(15, 23, 42, 0.15);
+  
+  --far: 'Plus Jakarta Sans', 'Noto Kufi Arabic', sans-serif; 
+  --fhead: 'Plus Jakarta Sans', 'Noto Kufi Arabic', sans-serif; 
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg-main); color: var(--text-main); font-family: var(--far); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── GLOBAL ANIMATIONS ── */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes pulseGlow { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5); } 70% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
+@keyframes toastIn  { from { opacity:0; transform:translateY(-20px) scale(0.9); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes toastOut { from { opacity:1; transform:translateY(0) scale(1); } to { opacity:0; transform:translateY(-10px) scale(0.95); } }
+
+/* ── HEADER ── */
+header { 
+  background: var(--primary-hover); 
+  height: 56px; display: flex; align-items: center; justify-content: space-between; 
+  padding: 0 28px; flex-shrink: 0; box-shadow: var(--shadow-md); z-index: 100; 
+}
+.brand { font-family: var(--fhead); font-size: 22px; font-weight: 800; letter-spacing: 0.5px; color: #fff; }
+.brand span { color: #94a3b8; font-weight: 500; }
+
+.header-actions { display: flex; gap: 10px; }
+.btn-header-toggle {
+  background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; padding: 7px 14px; font-family: var(--far); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s ease;
+}
+.btn-header-toggle:hover { background: rgba(255,255,255,0.16); }
+.btn-header-toggle.active { background: #fff; color: var(--primary-hover); }
+
+/* ── SHIFT BUTTON — distinct states so it's obvious whether a shift is running ── */
+#shift-btn.shift-running {
+  background: var(--danger) !important; border-color: var(--danger) !important; color: #fff !important;
+  animation: shiftPulse 2s ease-in-out infinite;
+}
+#shift-btn.shift-running:hover { background: #b91c1c !important; }
+@keyframes shiftPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  70%  { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+/* ── MAIN LAYOUT — single column now; the left panel moved into the Menu modal ── */
+main { display: flex; flex-direction: column; height: calc(100vh - 56px); }
+
+.panel-block { 
+  background: var(--bg-col); border: 1px solid var(--border); border-radius: 10px; 
+  padding: 14px; box-shadow: var(--shadow-sm); transition: border-color 0.2s ease;
+}
+.panel-block:hover { border-color: var(--border-focus); }
+.panel-lbl { font-family: var(--far); font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
+
+.clean-input { 
+  width: 100%; padding: 9px 12px; border-radius: 8px; background: #fff; 
+  border: 1px solid var(--border); color: var(--text-main); font-family: var(--far); font-size: 13px; font-weight: 500;
+  outline: none; margin-bottom: 10px; transition: border-color 0.2s ease; 
+}
+.clean-input:focus { border-color: var(--primary); }
+
+/* ── BUTTONS ── */
+.btn-side, .btn, .btn-rename, .m-confirm, .m-cancel, .abtn-confirm, .abtn-cancel { 
+  background: var(--primary) !important; color: #ffffff !important; 
+  border: none !important; cursor: pointer; 
+  font-family: var(--far); font-weight: 600; transition: background 0.2s ease, transform 0.15s ease; text-align: center;
+  box-shadow: var(--shadow-btn); outline: none;
+}
+.btn-side:hover, .btn:hover, .btn-rename:hover, .m-confirm:hover, .m-cancel:hover, .abtn-confirm:hover, .abtn-cancel:hover { 
+  background: var(--primary-hover) !important; 
+}
+.btn-side:active, .btn:active { transform: scale(0.98); }
+.btn-side { width: 100%; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 8px; display: inline-block; }
+.btn-clear-disp { background: transparent !important; color: var(--text-muted) !important; border: 1px solid var(--border) !important; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+.btn-clear-disp:hover { color: var(--danger) !important; border-color: var(--danger) !important; }
+
+#qr-img { border-radius: 10px; display: block; width: 100%; max-width: 150px; margin: 0 auto; background: #fff; border: 1px solid var(--border); padding: 5px; transition: transform 0.3s; }
+#qr-img:hover { transform: scale(1.05); }
+.qr-url { margin-top: 10px; font-size: 11px; font-weight: 600; color: var(--text-muted); word-break: break-all; text-align: center; background: #fff; padding: 8px; border-radius: 8px; border: 1px dashed var(--border); }
+.qr-url a { color: var(--primary); text-decoration: none; }
+.timer-val { font-family: var(--fhead); font-size: 30px; font-weight: 700; color: var(--text-main); text-align: center; }
+
+/* ── RIGHT PANEL & DASHBOARD ── */
+.right-panel { 
+  display: flex; flex-direction: column; height: 100%; padding: 16px; background: var(--bg-main); overflow: hidden; gap: 16px;
+}
+
+/* ── COLLAPSIBLE STATS BAR (Search + Dashboard cards) — toggled via the header "Stats" button ── */
+#stats-bar { display: flex; flex-direction: column; gap: 16px; flex-shrink: 0; overflow: hidden; max-height: 220px; opacity: 1; transition: max-height 0.25s ease, opacity 0.2s ease, margin 0.25s ease; }
+#stats-bar.collapsed { max-height: 0; opacity: 0; margin: 0; pointer-events: none; }
+
+/* ── MANAGEMENT DASHBOARD ── */
+.dashboard-header {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-shrink: 0;
+}
+
+/* ── DRIVER SEARCH ── */
+.driver-search-wrap { position: relative; width: 280px; }
+.driver-search-input {
+  width: 100%; padding: 8px 14px; border-radius: 8px; background: #fff;
+  border: 1px solid var(--border); color: var(--text-main); font-family: var(--far);
+  font-size: 13px; font-weight: 500; outline: none; transition: border-color 0.2s ease;
+}
+.driver-search-input:focus { border-color: var(--primary); }
+.driver-search-results {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: var(--shadow-lg); max-height: 260px; overflow-y: auto; z-index: 150;
+}
+.driver-search-results.show { display: block; }
+.dsr-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 9px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.15s ease;
+}
+.dsr-item:last-child { border-bottom: none; }
+.dsr-item:hover, .dsr-item.active-hover { background: var(--primary); }
+.dsr-item:hover .dsr-name, .dsr-item.active-hover .dsr-name { color: #fff; }
+.dsr-item:hover .dsr-status, .dsr-item.active-hover .dsr-status { color: #fff; opacity: 0.85; }
+.dsr-name { font-size: 13.5px; font-weight: 800; letter-spacing: 0.1px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dsr-status { font-size: 11px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; text-transform: capitalize; }
+.dsr-empty { padding: 14px; text-align: center; font-size: 12px; color: var(--text-muted); }
+
+/* Highlight a found driver card briefly so the eye catches it */
+@keyframes searchHighlight {
+  0%   { box-shadow: 0 0 0 0 rgba(30, 41, 59, 0); border-color: var(--border); }
+  15%  { box-shadow: 0 0 0 3px rgba(30, 41, 59, 0.35); border-color: var(--primary-hover); }
+  100% { box-shadow: 0 0 0 0 rgba(30, 41, 59, 0); border-color: var(--border); }
+}
+.search-highlight { animation: searchHighlight 1.8s ease-out; }
+.btn-dash-reset {
+  font-family: var(--far); font-size: 12px; font-weight: 700; color: var(--text-muted);
+  background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px;
+  cursor: pointer; transition: border-color 0.2s ease;
+}
+.btn-dash-reset:hover { border-color: var(--danger); color: var(--danger); }
+.dashboard-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; flex-shrink: 0;
+}
+.dash-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+.dash-title { font-family: var(--far); font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-align: center; }
+.dash-val { font-family: var(--fhead); font-size: 24px; font-weight: 700; color: var(--text-main); line-height: 1; }
+.dash-rate { font-family: var(--far); font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-top: 6px; }
+
+/* Dashboard Colors — neutral by default, color only for success/danger states */
+.dash-card.total .dash-val { color: var(--text-main); }
+.dash-card.success { border-bottom: 2px solid var(--success); } .dash-card.success .dash-val { color: var(--success); } .dash-card.success .dash-rate { background: var(--success-light); color: var(--success); }
+.dash-card.danger { border-bottom: 2px solid var(--danger); } .dash-card.danger .dash-val { color: var(--danger); } .dash-card.danger .dash-rate { background: var(--danger-light); color: var(--danger); }
+.dash-card.warning { border-bottom: 2px solid var(--text-muted); } .dash-card.warning .dash-val { color: var(--text-main); } .dash-card.warning .dash-rate { background: var(--bg-col); color: var(--text-muted); }
+.dash-card.info .dash-val { color: var(--text-main); }
+.dash-card.break .dash-val { color: var(--text-main); }
+.dash-card.fines { border-bottom: 2px solid var(--danger); transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.dash-card.fines:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.dash-card.fines .dash-val { color: var(--danger); }
+
+/* ── QR PANEL ── */
+.qr-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  box-shadow: var(--shadow-sm);
+  min-width: 200px;
+  max-width: 260px;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 14px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.qr-panel-title {
+  font-family: var(--fhead);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-align: center;
+}
+.qr-panel-img {
+  width: 100%;
+  max-width: 180px;
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+  border: 1px solid var(--border);
+  display: block;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.qr-panel-img:hover { transform: scale(1.03); box-shadow: var(--shadow-md); }
+.qr-panel-url {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  word-break: break-all;
+  text-align: center;
+  background: var(--bg-main);
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  width: 100%;
+}
+.qr-panel-url a { color: var(--primary); text-decoration: none; }
+.qr-panel-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.5;
+  font-weight: 500;
+}
+.qr-panel-pulse {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--success);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.qr-panel-pulse::before {
+  content: '';
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulseGlow 1.5s ease-in-out infinite;
+}
+
+/* ── KANBAN WRAPPER ── */
+.kanban-wrapper {
+  display: grid; grid-template-columns: auto 1fr 1fr 1fr; gap: 14px; flex: 1; overflow-x: auto; min-height: 0;
+}
+.col { 
+  background: var(--bg-col); border: 1px solid var(--border); border-radius: 12px; 
+  display: flex; flex-direction: column; overflow: hidden; height: 100%; 
+  box-shadow: var(--shadow-sm); min-width: 220px;
+}
+.col-head { 
+  padding: 12px 14px; border-bottom: 1px solid var(--border); 
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: #ffffff; 
+}
+.col-title { font-family: var(--fhead); font-size: 15px; font-weight: 700; color: var(--text-main); }
+.col-count { font-family: var(--far); font-size: 13px; font-weight: 700; color: var(--text-muted); background: var(--bg-col); padding: 2px 10px; border-radius: 20px; }
+.col-body { 
+  flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; 
+}
+.col-body::-webkit-scrollbar { width: 6px; } 
+.col-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
+
+/* ── CARDS ── */
+.driver-card, .break-card, .order-row { animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+.driver-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  box-shadow: var(--shadow-sm); transition: border-color 0.2s ease; position: relative;
+}
+.driver-card:hover { border-color: var(--border-focus); }
+
+/* ── DISPATCHER ORDERS ── */
+.order-row {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; transition: border-color 0.2s ease;
+  position: relative;
+}
+.order-row::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--border-focus); border-radius: 3px 0 0 3px; }
+.order-row.picked-up::before { background: var(--success); }
+.order-row.picked-up { background: var(--success-light); border-color: #bbf7d0; }
+.order-row.order-overdue::before { background: var(--danger); }
+.order-row.order-overdue { background: var(--danger-light); border-color: #fca5a5; }
+.order-row.order-overdue.picked-up { background: var(--danger-light); border-color: #fca5a5; }
+.order-row:hover { border-color: var(--border-focus); }
+
+/* ── DRAG & DROP — Order → Driver ── */
+.order-row[draggable="true"] { cursor: grab; }
+.order-row[draggable="true"]:active { cursor: grabbing; }
+.order-row.dragging {
+  opacity: 0.45; transform: scale(0.97); border: 2px dashed var(--primary);
+  background: var(--primary-light) !important;
+}
+.driver-card.drop-target {
+  border: 2px dashed var(--success) !important;
+  background: #f0fdf4 !important;
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.18) !important;
+  transform: scale(1.02);
+  transition: all 0.15s ease !important;
+}
+@keyframes assignFlash {
+  0%   { background: #bbf7d0; border-color: var(--success); }
+  60%  { background: #dcfce7; }
+  100% { background: var(--success-light); border-color: #bbf7d0; }
+}
+.driver-card.assign-flash { animation: assignFlash 0.6s ease forwards; }
+
+.out-order-info {
+  margin-top: 7px; padding: 6px 8px; background: var(--bg-col);
+  border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 6px;
+  font-size: 11px; color: var(--text-main); display: flex; flex-direction: column; gap: 3px;
+}
+.out-order-info .oi-row { display: flex; align-items: center; gap: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.out-order-info .oi-row span { overflow: hidden; text-overflow: ellipsis; }
+.out-order-info .oi-time { font-weight: 700; color: var(--primary); font-size: 11px; }
+
+.o-assigned-badge {
+  font-size: 11px; font-weight: 700; color: #15803d;
+  padding-top: 4px; border-top: 1px dashed #86efac;
+  display: flex; align-items: center; gap: 4px;
+}
+
+#dispatcher-list.drag-active .order-row:not(.dragging) { opacity: 0.75; }
+#dispatcher-list.drag-active .order-row[draggable="true"]:not(.dragging):hover { opacity: 1; }
+
+.o-rank  { font-family: var(--fhead); font-size: 14px; font-weight: 700; color: #fff; background: var(--text-muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+
+.btn-clear-disp {
+  font-family: var(--far); font-size: 11px; font-weight: 700; color: var(--danger);
+  background: var(--danger-light); border: 1px solid #fecaca; border-radius: 6px;
+  padding: 4px 10px; cursor: pointer; transition: background 0.15s ease;
+}
+.btn-clear-disp:hover { background: #fecaca; }
+
+/* ── ORDERS MAP MODAL ── */
+.orders-map-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+  z-index: 9999; align-items: center; justify-content: center; padding: 16px;
+}
+.orders-map-overlay.open { display: flex; }
+.orders-map-box {
+  background: #fff; border-radius: 14px; width: min(1000px, 96vw); height: min(760px, 92vh);
+  display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.orders-map-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;
+}
+.orders-map-head h3 { margin: 0; font-size: 16px; font-weight: 800; color: #0f172a; }
+.orders-map-close {
+  border: none; background: #f1f5f9; color: #475569; width: 32px; height: 32px;
+  border-radius: 8px; cursor: pointer; font-size: 16px; line-height: 1;
+}
+.orders-map-close:hover { background: #e2e8f0; }
+#orders-map-canvas { flex: 1; width: 100%; }
+.orders-map-legend {
+  display: flex; gap: 14px; align-items: center; padding: 8px 18px; font-size: 12px;
+  color: #475569; border-top: 1px solid #e2e8f0; flex-shrink: 0; background: #f8fafc;
+}
+.orders-map-legend span { display: flex; align-items: center; gap: 5px; }
+.orders-map-legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.orders-map-scope { display: flex; gap: 4px; background: #f1f5f9; border-radius: 8px; padding: 3px; }
+.orders-map-scope button {
+  border: none; background: transparent; color: #475569; font-size: 12px; font-weight: 700;
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+}
+.orders-map-scope button.active { background: #1d4ed8; color: #fff; }
+.btn-orders-map {
+  background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px;
+  padding: 4px 10px; cursor: pointer; font-weight: 700; font-size: 12px;
+}
+.btn-orders-map:hover { background: #dbeafe; }
+.btn-orders-map.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+
+/* ── LOADING INDICATORS ── */
+
+.loading-spinner {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  padding: 30px 10px; color: var(--text-muted); font-size: 12px; font-weight: 600;
+}
+.spinner {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 3px solid var(--border); border-top-color: var(--primary);
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.global-load-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: transparent;
+  transition: background 0.2s ease; flex-shrink: 0; align-self: center;
+}
+.global-load-dot.active {
+  background: #4ade80; animation: dotPulse 1s ease-in-out infinite;
+}
+@keyframes dotPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── UNIFIED NOTIFICATIONS ── */
+#notify-container {
+  position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 10000;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none; align-items: center;
+}
+.notify-toast {
+  display: flex; align-items: center; gap: 10px; pointer-events: auto;
+  background: #fff; border-radius: 10px; padding: 11px 14px; box-shadow: var(--shadow-lg);
+  font-family: var(--far); font-size: 13px; font-weight: 600; color: var(--text-main);
+  min-width: 240px; max-width: 420px; animation: toastIn 0.3s cubic-bezier(.34,1.56,.64,1) forwards;
+  border-left: 4px solid var(--text-muted);
+}
+.notify-toast.notify-success { border-left-color: var(--success); background: var(--success-light); }
+.notify-toast.notify-error   { border-left-color: var(--danger);  background: var(--danger-light); }
+.notify-toast.notify-warning { border-left-color: #f59e0b; background: #fffbeb; }
+.notify-toast.notify-info    { border-left-color: var(--primary); }
+.notify-icon { font-size: 16px; flex-shrink: 0; }
+.notify-msg { flex: 1; line-height: 1.4; word-break: break-word; }
+.notify-close {
+  background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 13px;
+  padding: 2px 4px; flex-shrink: 0; opacity: 0.6; transition: opacity 0.15s ease;
+}
+.notify-close:hover { opacity: 1; }
+
+/* ── PROMPT MODAL (replaces browser prompt()) ── */
+#prompt-modal .modal { max-width: 380px; padding: 20px; text-align: left; direction: ltr; }
+#prompt-modal h3 { margin-bottom: 12px; font-size: 16px; }
+#pm-input {
+  width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  font-family: var(--far); font-size: 14px; outline: none; margin-bottom: 14px; transition: border-color 0.2s ease;
+}
+#pm-input:focus { border-color: var(--primary); }
+
+.card-top { display: flex; align-items: center; gap: 8px; width: 100%; }
+.sortable-ghost { opacity: 0.4 !important; background: var(--primary-light) !important; border: 2px dashed var(--primary) !important; }
+.sortable-drag  { box-shadow: var(--shadow-lg) !important; border-color: var(--primary) !important; transform: scale(1.03) rotate(1deg); cursor: grabbing !important; }
+
+.drag-handle { color: #94a3b8; cursor: grab; font-size: 16px; flex-shrink: 0; padding: 0 4px; display: flex; align-items: center; transition: 0.2s; }
+.drag-handle:hover { color: var(--primary); }
+.drag-handle:active { cursor: grabbing; color: var(--primary); }
+
+/* ── FLAG BUTTON (waiting cards) ── */
+.btn-flag {
+  width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--text-muted); flex-shrink: 0; transition: all 0.15s ease;
+  padding: 0; line-height: 1;
+}
+.btn-flag:hover { border-color: #fca5a5; color: var(--danger); background: var(--danger-light); }
+.driver-card.flagged { background: #fff5f5 !important; border-color: #fca5a5 !important; }
+.driver-card.flagged .btn-flag { background: var(--danger) !important; border-color: var(--danger) !important; color: #fff !important; }
+.driver-card.flagged .d-name { color: var(--danger); }
+.driver-card.flagged .drag-handle { cursor: not-allowed; pointer-events: none; color: #fca5a5; }
+
+/* 🔔 Notify button */
+.btn-notify {
+  width: 28px; height: 28px; border-radius: 8px; border: 1px solid #bfdbfe;
+  background: #eff6ff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0; transition: all 0.15s ease; padding: 0; line-height: 1;
+}
+.btn-notify:hover  { background: #dbeafe; border-color: #93c5fd; transform: scale(1.1); }
+.btn-notify.sent   { background: #dcfce7; border-color: #86efac; animation: notifyPop 0.4s ease; }
+.btn-notify.failed { background: var(--danger-light); border-color: #fca5a5; }
+@keyframes notifyPop { 0%{transform:scale(1)} 50%{transform:scale(1.25)} 100%{transform:scale(1)} }
+
+/* ── BRAND LOCK BUTTON ── */
+.brand-lock-btn {
+  background: none; border: none; cursor: pointer; padding: 0 0 0 2px;
+  font-family: var(--fhead); font-size: 22px; font-weight: 800; letter-spacing: 0.5px;
+  color: #fff; transition: color 0.2s; line-height: 1;
+}
+.brand-lock-btn:hover { color: #94a3b8; }
+.brand-lock-btn.locked { color: #f87171; }
+.brand-lock-btn.locked:hover { color: #fca5a5; }
+/* show a subtle lock icon prefix when locked */
+.brand-lock-btn.locked::before { content: "🔒 "; font-size: 14px; vertical-align: middle; margin-right: 2px; }
+
+.d-pos { font-family: var(--fhead); font-size: 13px; font-weight: 700; color: var(--text-muted); width: 22px; text-align: center; flex-shrink: 0; background: var(--bg-col); border-radius: 6px; padding: 2px 0; }
+.first .d-pos { color: #fff; background: var(--primary); }
+
+.d-info { flex: 1; min-width: 0; }
+.d-name { font-size: 13.5px; font-weight: 800; letter-spacing: 0.1px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.d-time { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 4px; }
+
+.miss-badge, .ret-badge { display: inline-block; font-family: var(--far); font-size: 10px; font-weight: 700; color: var(--danger); background: var(--danger-light); padding: 1px 6px; border-radius: 4px; line-height: 1.3; }
+.ret-badge { color: var(--text-muted); background: var(--bg-col); }
+
+.d-icons { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-rename { padding: 6px; border-radius: 8px; font-size: 12px; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
+
+.card-btns { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
+.btn { flex: 1; border-radius: 8px; padding: 6px 8px; font-family: var(--fhead); font-size: 12px; letter-spacing: 0.5px; }
+
+.btn-miss  { background: var(--danger) !important; }
+.btn-miss:hover  { background: #b91c1c !important; }
+.btn-ret   { background: var(--text-muted) !important; }
+.btn-ret:hover   { background: var(--text-main) !important; }
+.btn-break { background: var(--text-muted) !important; }
+.btn-break:hover { background: var(--text-main) !important; }
+.btn-done  { background: var(--success) !important; }
+.btn-done:hover  { background: #15803d !important; }
+
+.break-card { 
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  box-shadow: var(--shadow-sm); transition: border-color 0.2s ease;
+}
+.break-card:hover { border-color: var(--border-focus); }
+.brk-name { font-size: 13.5px; font-weight: 800; letter-spacing: 0.1px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brk-timer { font-family: var(--fhead); font-size: 20px; font-weight: 700; color: var(--text-main); text-align: center; background: var(--bg-col); border-radius: 8px; padding: 4px 0; transition: all 0.3s ease; }
+.brk-timer.urgent { color: #fff; background: var(--danger); }
+.brk-actions { display: flex; gap: 6px; }
+
+.o-rank  { font-family: var(--fhead); font-size: 14px; font-weight: 700; color: #fff; background: var(--text-muted); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.o-name  { font-size: 13.5px; font-weight: 800; letter-spacing: 0.1px; flex: 1; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* صف العنوان (pickup/dropoff) — حد أقصى سطرين مع نقاط (...) بدل ما يطول النص ويتراكب مع الكارت اللي بعده */
+.o-addr-row { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; font-weight: 600; line-height: 1.35; }
+.o-addr-icon { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+.o-addr-text { 
+  flex: 1; color: var(--text-main); 
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.o-addr-row.dropoff .o-addr-text { color: #15803d; }
+.o-addr-row.pickup .o-addr-text { color: var(--primary); }
+
+.o-meta { font-size: 10px; font-weight: 600; color: var(--text-muted); display: flex; gap: 8px; padding-top: 4px; border-top: 1px dashed var(--border); }
+.o-picked { font-size: 11px; font-weight: 700; color: #15803d; padding-top: 4px; border-top: 1px dashed #86efac; }
+.empty { padding: 32px 10px; text-align: center; font-family: var(--far); font-size: 13px; font-weight: 600; color: var(--text-muted); }
+
+/* ── MODALS WITH ANIMATIONS ── */
+.modal-ov { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); transition: opacity 0.3s ease; }
+.modal-ov.show { display: flex; animation: fadeInModal 0.3s ease; }
+
+.modal { 
+  background: var(--card); border-radius: 20px; padding: 28px; 
+  max-width: 380px; width: 92%; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.3); 
+  transform: scale(0.95); opacity: 0; animation: scaleUpModal 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+@keyframes scaleUpModal { to { transform: scale(1); opacity: 1; } }
+
+.modal h3 { font-family: var(--fhead); font-size: 22px; font-weight: 700; margin-bottom: 12px; color: var(--text-main); }
+.modal p { color: var(--text-muted); font-size: 14px; font-weight: 600; margin-bottom: 24px; line-height: 1.6; }
+.modal-btns { display: flex; gap: 12px; }
+.m-confirm, .m-cancel { flex: 1; border-radius: 10px; padding: 12px; font-family: var(--fhead); font-size: 16px; }
+
+/* ── ACTION MODAL (Miss / Return) - ARABIC RTL ── */
+#action-modal .modal { text-align: right; padding: 0; overflow: hidden; max-width: 400px; direction: rtl; }
+.amodal-header { padding: 24px; display: flex; align-items: center; gap: 16px; background: var(--bg-main); border-bottom: 1px solid var(--border); }
+.amodal-icon { font-size: 32px; line-height: 1; flex-shrink: 0; background: #fff; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); }
+.amodal-type  { font-family: var(--far); font-size: 14px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+.amodal-name  { font-family: var(--far); font-size: 22px; font-weight: 800; letter-spacing: 0.1px; color: var(--text-main); line-height: 1.1; }
+
+.amodal-body  { padding: 24px; display: flex; flex-direction: column; gap: 20px; background: #fff; }
+.afield-label { font-size: 14px; font-weight: 800; color: var(--text-main); margin-bottom: 10px; display: block; }
+.afield input, .afield textarea {
+  width: 100%; padding: 14px 16px; background: var(--bg-col); border: 2px solid var(--border);
+  border-radius: 12px; color: var(--text-main); font-family: var(--far); font-size: 15px; font-weight: 700;
+  outline: none; transition: all 0.3s ease;
+}
+.afield input:focus, .afield textarea:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px var(--primary-light); transform: translateY(-2px); }
+.afield textarea { resize: none; height: 90px; }
+
+.reason-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.chip {
+  padding: 7px 13px; border-radius: 50px; background: var(--bg-col); border: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s ease; white-space: nowrap;
+}
+.chip:hover  { border-color: var(--border-focus); color: var(--text-main); }
+.chip.active { border-color: var(--primary) !important; color: #fff !important; background: var(--primary) !important; font-weight: 700; }
+
+.amodal-footer { padding: 0 24px 24px; display: flex; gap: 12px; background: #fff; }
+
+.allowed-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.allowed-item:last-child { border-bottom: none; }
+.allowed-item:hover { background: var(--bg-col); }
+.allowed-item .email { color: var(--text-main); font-weight: 800; letter-spacing: 0.1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.allowed-item .rm-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0; }
+.allowed-item .rm-btn:hover { color: var(--danger); }
+.allowed-empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.abtn-confirm, .abtn-cancel { flex: 1; padding: 14px; border-radius: 10px; font-family: var(--far); font-size: 15px; font-weight: bold; letter-spacing: 0.5px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1400px) {
+  .kanban-wrapper { grid-template-columns: auto 1fr 1fr; }
+  .qr-panel { max-width: 200px; }
+}
+@media (max-width: 1100px) {
+  .kanban-wrapper { grid-template-columns: repeat(2, 1fr); }
+  .qr-panel { display: none; }
+}
+@media (max-width: 768px) {
+  header { padding: 0 16px; height: 56px; } .brand { font-size: 20px; }
+  .header-actions { gap: 6px; } .btn-header-toggle { padding: 6px 10px; font-size: 12px; }
+  main { display: flex; flex-direction: column; height: calc(100vh - 56px); }
+  .right-panel { display: flex; flex-direction: column; flex: 1; overflow: hidden; padding: 10px; gap: 10px; }
+  #stats-bar { max-height: 260px; }
+  
+  .dashboard-header { flex-direction: column; align-items: stretch; gap: 8px; }
+  .driver-search-wrap { width: 100%; }
+  
+  .dashboard-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .dash-card { padding: 10px 6px; border-radius: 10px; }
+  .dash-title { font-size: 10px; } .dash-val { font-size: 18px; } .dash-rate { font-size: 11px; padding: 2px 6px; }
+  
+  .mobile-tabs { display: flex; background: #fff; flex-shrink: 0; border-radius: 10px; box-shadow: var(--shadow-sm); z-index: 10; margin-bottom: 5px; overflow-x: auto; scrollbar-width: none; }
+  .mobile-tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 1; min-width: 80px; padding: 12px 5px; text-align: center; font-family: var(--fhead); font-size: 14px; font-weight: 700; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--bg-col); border-radius: 8px; }
+  
+  .kanban-wrapper { display: flex; flex-direction: column; min-height: 0; }
+  .col { display: none; flex: 1; overflow: hidden; height: auto; border-radius: 12px; border: 1px solid var(--border); padding: 12px; min-width: 0; } 
+  .col.active { display: flex; animation: popIn 0.3s ease; } .col-head { display: none; }
+}
+@media (min-width: 769px) { .mobile-tabs { display: none; } .col { display: flex !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">RWA7EL <button class="brand-lock-btn" id="drag-lock-btn" onclick="toggleDragLock()" title="Lock/Unlock waiting queue drag">BANKAI</button></div>
+  <div class="header-actions">
+    <div id="global-load-dot" class="global-load-dot" title="Syncing..."></div>
+    <button class="btn-header-toggle" id="shift-btn" onclick="onShiftBtnClick()">▶️ Start Shift</button>
+    <button class="btn-header-toggle" id="stats-toggle-btn" onclick="toggleStatsBar()">📊 Stats</button>
+    <button class="btn-header-toggle" onclick="openMenuModal()">☰ Menu</button>
+  </div>
+</header>
+
+<main>
+  <div class="right-panel">
+    
+    <div id="stats-bar">
+      <div class="dashboard-header">
+        <div class="driver-search-wrap">
+          <input type="text" id="driver-search" class="driver-search-input" placeholder="🔍 Search driver name..." autocomplete="off" oninput="onDriverSearchInput()" onfocus="onDriverSearchInput()">
+          <div id="driver-search-results" class="driver-search-results"></div>
+        </div>
+        <button class="btn-dash-reset" onclick="confirmResetDashboard()" title="تصفير كل أرقام الداشبورد (Total/Delivered/Missed/Returned)">
+          ↺ Reset Dashboard
+        </button>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="dash-card total">
+          <div class="dash-title">Total Orders (<span id="ds-date">Today</span>)</div>
+          <div class="dash-val" id="ds-total">0</div>
+        </div>
+        <div class="dash-card success">
+          <div class="dash-title">Delivered</div>
+          <div class="dash-val" id="ds-delivered">0</div>
+          <div class="dash-rate" id="ds-s-rate">0%</div>
+        </div>
+        <div class="dash-card danger">
+          <div class="dash-title">Missed</div>
+          <div class="dash-val" id="ds-missed">0</div>
+          <div class="dash-rate" id="ds-m-rate">0%</div>
+        </div>
+        <div class="dash-card warning">
+          <div class="dash-title">Returned</div>
+          <div class="dash-val" id="ds-returned">0</div>
+          <div class="dash-rate" id="ds-r-rate">0%</div>
+        </div>
+        <div class="dash-card info">
+          <div class="dash-title">Active Drivers</div>
+          <div class="dash-val" id="ds-active">0</div>
+        </div>
+        <div class="dash-card break">
+          <div class="dash-title">Break Drivers</div>
+          <div class="dash-val" id="ds-break">0</div>
+        </div>
+        <div class="dash-card fines" onclick="openFinesModal()" style="cursor:pointer;">
+          <div class="dash-title">💰 الغرامات</div>
+          <div class="dash-val" id="ds-fines-total">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-tabs">
+      <div class="tab active" onclick="switchTab('waiting')">Waiting</div>
+      <div class="tab"        onclick="switchTab('out')">Out</div>
+      <div class="tab"        onclick="switchTab('break')">Break</div>
+    </div>
+
+    <div class="kanban-wrapper">
+
+      <!-- ── QR PANEL (replaces New Orders column) ── -->
+      <div class="qr-panel" id="qr-side-panel">
+        <div class="qr-panel-title">Scan to Join</div>
+        <img id="qr-img-panel" class="qr-panel-img" alt="QR Code" onclick="enlargeQR()" title="Click to enlarge">
+        <div class="qr-panel-pulse">Live</div>
+        <div class="qr-panel-hint">السواق يسكن الكود<br>ويسجّل اسمه مباشرةً</div>
+        <div class="qr-panel-url" id="join-url-panel">Loading...</div>
+      </div>
+
+      <!-- hidden dispatcher (JS still needs it) -->
+      <div style="display:none" id="col-dispatcher">
+        <div class="col-body" id="dispatcher-list"></div>
+      </div>
+
+      <div class="col active" id="col-waiting">
+        <div class="col-head">
+          <div class="col-title">Waiting</div>
+          <div class="col-count" id="c-w">0</div>
+        </div>
+        <div class="col-body" id="waiting-list"></div>
+      </div>
+
+      <div class="col" id="col-out">
+        <div class="col-head">
+          <div class="col-title">Out</div>
+          <div class="col-count" id="c-o">0</div>
+        </div>
+        <div class="col-body" id="out-list"></div>
+      </div>
+
+      <div class="col" id="col-break">
+        <div class="col-head">
+          <div class="col-title">Break</div>
+          <div class="col-count" id="c-b">0</div>
+        </div>
+        <div class="col-body" id="break-list"></div>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<!-- Modals -->
+<div class="modal-ov" id="import-modal">
+  <div class="modal" style="max-width: 450px; text-align: right; direction: rtl; padding: 0; overflow: hidden; background: var(--card);">
+    <div class="amodal-header" style="padding: 20px; border-bottom: 1px solid var(--border); background: var(--bg-main);">
+      <h3 style="margin: 0; font-size: 20px; font-family: var(--far); color: var(--text-main);">استيراد التذاكر لتاريخ اليوم</h3>
+    </div>
+    <div class="amodal-body" style="padding: 20px;">
+      <div class="afield" style="margin-bottom: 15px;">
+        <label class="afield-label" style="font-size:14px; margin-bottom:8px; display:block; color:var(--text-main);">البدء من تذكرة رقم: (اختياري)</label>
+        <input type="number" id="import-start-ticket" placeholder="مثال: 40" style="width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 10px; text-align: right; direction: ltr; outline: none; font-size: 15px;">
+      </div>
+      <div class="afield" style="margin-bottom: 10px;">
+        <label class="afield-label" style="font-size:14px; margin-bottom:8px; display:block; color:var(--text-main);">ملف الإكسيل أو CSV:</label>
+        <input type="file" id="import-file-input" accept=".csv, .xlsx, .xls" style="width: 100%; padding: 10px; border: 2px dashed var(--primary); border-radius: 10px; background: var(--primary-light);">
+      </div>
+    </div>
+    <div class="amodal-footer" style="padding: 20px; display: flex; gap: 10px; background: #fff; border-top: 1px solid var(--border);">
+      <button class="abtn-cancel" onclick="closeImportModal()" style="flex: 1; padding: 12px; border-radius: 10px; background: #e2e8f0; color: #475569; border: none; font-weight: bold; cursor: pointer;">إلغاء</button>
+      <button class="abtn-confirm" id="import-confirm-btn" onclick="executeAdvancedImport()" style="flex: 1; padding: 12px; border-radius: 10px; background: var(--primary); color: #fff; border: none; font-weight: bold; cursor: pointer;">استيراد الآن</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🔴 Modal لإدارة قايمة الحسابات المسموحة (اللي إحصائياتها بس بتتحسب في Delivered/Missed/Returned) -->
+<div class="modal-ov" id="allowed-modal">
+  <div class="modal" style="max-width: 480px; padding: 0; overflow: hidden; background: var(--card);">
+    <div class="amodal-header" style="padding: 20px; border-bottom: 1px solid var(--border); background: var(--bg-main);">
+      <h3 style="margin: 0; font-size: 18px; font-family: var(--far); color: var(--text-main);">Allowed Accounts <span style="color:var(--text-muted); font-weight:500;">(<span id="allowed-modal-count">0</span> accounts)</span></h3>
+    </div>
+    <div class="amodal-body" style="padding: 16px 20px; gap: 12px;">
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="allowed-add-input" class="clean-input" placeholder="email@outlook.com" style="margin-bottom:0; flex:1;" onkeydown="if(event.key==='Enter')addAllowedAccount()">
+        <button class="btn-side" style="width:auto; padding:9px 14px; margin-bottom:0;" onclick="addAllowedAccount()">+ Add</button>
+      </div>
+      <input type="text" id="allowed-filter-input" class="clean-input" placeholder="🔍 Filter list..." style="margin-bottom:0;" oninput="renderAllowedList()">
+      <div id="allowed-list-box" style="max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;"></div>
+    </div>
+    <div class="amodal-footer" style="padding: 16px 20px; display: flex; gap: 10px; background: #fff; border-top: 1px solid var(--border);">
+      <button class="abtn-cancel" onclick="closeAllowedAccountsModal()" style="flex: 1; padding: 12px; border-radius: 10px; background: #e2e8f0; color: #475569; border: none; font-weight: bold; cursor: pointer;">إغلاق</button>
+      <button class="abtn-confirm" style="flex: 1; padding: 12px; border-radius: 10px; background: var(--danger); color: #fff; border: none; font-weight: bold; cursor: pointer;" onclick="clearAllAllowedAccounts()">🗑️ Clear All</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- 🔴 Menu modal — يحتوي كل أدوات اللوحة الجانبية القديمة (Quick Add, Import, Allowed Accounts, Contact, Export, QR, Danger Zone) -->
+<div class="modal-ov" id="menu-modal">
+  <div class="modal" style="max-width: 420px; padding: 0; overflow: hidden; background: var(--card); max-height: 85vh; display: flex; flex-direction: column;">
+    <div class="amodal-header" style="padding: 18px 20px; border-bottom: 1px solid var(--border); background: var(--bg-main); flex-shrink: 0;">
+      <h3 style="margin: 0; font-size: 18px; font-family: var(--far); color: var(--text-main);">Tools &amp; Settings</h3>
+    </div>
+    <div class="amodal-body" style="padding: 16px; gap: 12px; overflow-y: auto; flex: 1;">
+
+      <div class="panel-block">
+        <div class="panel-lbl">Quick Add to System</div>
+        <input id="newDriverName" class="clean-input" placeholder="Driver Name...">
+        <button class="btn-side" onclick="addDriver()">+ Add Directly to Waiting</button>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-lbl">Import Emails to Waiting</div>
+        <button class="btn-side" style="border:1.5px dashed rgba(255,255,255,0.5) !important; margin-bottom:0;" onclick="openImportModal()">
+          📁 Advanced Import (CSV/Excel)
+        </button>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-lbl">Allowed Accounts (Stats Filter) — <span id="allowed-count">0</span> accounts</div>
+        <input type="file" id="allowed-xlsx-input" accept=".xlsx" style="display:none" onchange="importAllowedXlsx(this)">
+        <button class="btn-side" style="margin-bottom:8px" onclick="document.getElementById('allowed-xlsx-input').click()">📥 Import from Excel</button>
+        <button class="btn-side" style="background: var(--text-muted) !important; margin-bottom:0;" onclick="openAllowedAccountsModal()">⚙️ Manage List</button>
+      </div>
+
+      <div class="panel-block" style="border-color:#fecaca; background:#fff8f8;">
+        <div class="panel-lbl" style="color:var(--danger);">💰 الغرامات</div>
+        <button class="btn-side" style="background: var(--danger) !important; margin-bottom:0;" onclick="closeMenuModal();openFinesModal();">📋 فتح صفحة الغرامات</button>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-lbl">Contact Phone</div>
+        <input id="contactPhone" class="clean-input" placeholder="01xxxxxxxxx">
+        <button class="btn-side" onclick="savePhone()">Save Number</button>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-lbl">Export Data</div>
+        <button class="btn-side" style="margin-bottom:8px" onclick="exportMisses()">📥 Export Misses</button>
+        <button class="btn-side" onclick="exportReturns()">📥 Export Returns</button>
+      </div>
+
+      <div class="panel-block">
+        <div class="panel-lbl">Scan to Join</div>
+        <img id="qr-img" alt="QR Code">
+        <div class="qr-url" id="join-url">Loading URL...</div>
+      </div>
+
+      <div class="panel-block" style="text-align:center; background: #fff; border-color: var(--primary-light);">
+        <div class="panel-lbl">Session Time</div>
+        <div class="timer-val" id="timer">00:00:00</div>
+      </div>
+
+      <div class="panel-block" style="border-color:#7c3aed; background:#faf5ff;">
+        <div class="panel-lbl" style="color:#7c3aed;">✏️ Text Editor</div>
+        <button class="btn-side" style="background:#7c3aed !important; margin-bottom:8px;" onclick="closeMenuModal();openTextEditor();">✏️ تعديل نصوص Join Page</button>
+        <button class="btn-side" style="background:#6d28d9 !important; margin-bottom:0;" onclick="closeMenuModal();openTextEditorAdmin();">✏️ تعديل نصوص Admin Page</button>
+      </div>
+
+      <div class="panel-block" style="border-color:#fecaca; background:#fff8f8;">
+        <div class="panel-lbl" style="color:var(--danger);">Danger Zone</div>
+        <button class="btn-side" style="background: var(--danger) !important; margin-bottom:8px" onclick="confirmResetOrders()">Purge Database</button>
+        <button class="btn-side" style="background: var(--danger) !important; margin-bottom:0;" onclick="confirmClearWaitingOut()">🗑️ Clear Waiting &amp; Out</button>
+      </div>
+
+    </div>
+    <div class="amodal-footer" style="padding: 14px 20px; display: flex; gap: 10px; background: #fff; border-top: 1px solid var(--border); flex-shrink: 0;">
+      <button class="abtn-cancel" onclick="closeMenuModal()" style="flex: 1; padding: 12px; border-radius: 10px; background: #e2e8f0; color: #475569; border: none; font-weight: bold; cursor: pointer;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- 💰 Fines Modal — صفحة الغرامات الكاملة: إضافة، عرض، حذف، تعديل، Export -->
+<div class="modal-ov" id="fines-modal">
+  <div class="modal" style="max-width: 720px; padding: 0; overflow: hidden; background: var(--card); max-height: 88vh; display: flex; flex-direction: column; direction: rtl;">
+    <div class="amodal-header" style="padding: 18px 20px; border-bottom: 1px solid var(--border); background: var(--bg-main); flex-shrink: 0;">
+      <div class="amodal-icon" style="font-size:26px;">💰</div>
+      <div class="amodal-title-wrap">
+        <div class="amodal-type">إدارة الغرامات</div>
+        <div class="amodal-name">الغرامات (Fines)</div>
+      </div>
+    </div>
+
+    <div class="amodal-body" style="padding: 18px 20px; gap: 16px; overflow-y: auto; flex: 1;">
+
+      <!-- ملخص سريع -->
+      <div style="display:flex; gap:10px;">
+        <div style="flex:1; background:var(--danger-light); border:1px solid #fecaca; border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:11px; font-weight:700; color:var(--danger); margin-bottom:4px;">إجمالي الغرامات</div>
+          <div style="font-size:22px; font-weight:800; color:var(--danger);" id="fines-total-amount">0.00</div>
+        </div>
+        <div style="flex:1; background:var(--bg-col); border:1px solid var(--border); border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">عدد الغرامات</div>
+          <div style="font-size:22px; font-weight:800; color:var(--text-main);" id="fines-total-count">0</div>
+        </div>
+      </div>
+
+      <!-- فورم إضافة غرامة جديدة -->
+      <div class="panel-block" style="background:#fff;">
+        <div class="panel-lbl" style="margin-bottom:8px;">➕ إضافة غرامة جديدة</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <select id="fine-driver-select" class="clean-input" style="margin-bottom:0;">
+            <option value="">— اختار السواق —</option>
+          </select>
+          <input id="fine-driver-manual" class="clean-input" style="margin-bottom:0; display:none;" placeholder="اكتب اسم السواق...">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="checkbox" id="fine-manual-toggle" onchange="toggleFineManualName()" style="width:16px; height:16px; cursor:pointer;">
+            <label for="fine-manual-toggle" style="font-size:12px; font-weight:600; color:var(--text-muted); cursor:pointer;">اسم السواق مش موجود في القايمة؟ اكتبه يدوي</label>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <input id="fine-amount" type="number" min="0" step="0.01" class="clean-input" style="margin-bottom:0; flex:1;" placeholder="المبلغ (جنيه)">
+          </div>
+          <input id="fine-reason" class="clean-input" style="margin-bottom:0;" placeholder="سبب الغرامة (مثال: تأخير، مخالفة سلامة...)">
+          <button class="btn-side" style="margin-bottom:0; background:var(--danger) !important;" onclick="submitAddFine()">💰 تسجيل الغرامة</button>
+        </div>
+      </div>
+
+      <!-- قايمة الغرامات -->
+      <div class="panel-block" style="background:#fff; padding:0; overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--border); background:var(--bg-col);">
+          <div class="panel-lbl" style="margin-bottom:0;">📋 كل الغرامات المسجلة</div>
+          <input id="fines-search" class="clean-input" style="margin-bottom:0; max-width:160px; padding:6px 10px; font-size:12px;" placeholder="🔍 بحث بالاسم..." oninput="renderFinesList()">
+        </div>
+        <div id="fines-list-wrap" style="max-height: 320px; overflow-y:auto;">
+          <div id="fines-empty" style="padding:24px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">لا توجد غرامات مسجلة لسه</div>
+          <table id="fines-table" style="width:100%; border-collapse:collapse; display:none;">
+            <thead>
+              <tr style="background:var(--bg-col); position:sticky; top:0;">
+                <th style="padding:8px 12px; text-align:right; font-size:11px; font-weight:700; color:var(--text-muted); border-bottom:1px solid var(--border);">السواق</th>
+                <th style="padding:8px 12px; text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); border-bottom:1px solid var(--border);">المبلغ</th>
+                <th style="padding:8px 12px; text-align:right; font-size:11px; font-weight:700; color:var(--text-muted); border-bottom:1px solid var(--border);">السبب</th>
+                <th style="padding:8px 12px; text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); border-bottom:1px solid var(--border);">التاريخ</th>
+                <th style="padding:8px 12px; text-align:center; font-size:11px; font-weight:700; color:var(--text-muted); border-bottom:1px solid var(--border);"></th>
+              </tr>
+            </thead>
+            <tbody id="fines-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <div class="amodal-footer" style="padding: 14px 20px; display: flex; gap: 10px; background: #fff; border-top: 1px solid var(--border); flex-shrink: 0;">
+      <button class="abtn-cancel" onclick="closeFinesModal()" style="flex: 1; padding: 12px; border-radius: 10px; background: #e2e8f0; color: #475569; border: none; font-weight: bold; cursor: pointer;">إغلاق</button>
+      <button class="abtn-cancel" style="flex: 1; padding: 12px; border-radius: 10px; background: var(--danger); color: #fff; border: none; font-weight: bold; cursor: pointer;" onclick="confirmClearFines()">🗑️ مسح الكل</button>
+      <button class="abtn-confirm" style="flex: 1.4;" onclick="exportFines()">📥 تنزيل تقرير Excel</button>
+    </div>
+  </div>
+</div>
+
+<div class="orders-map-overlay" id="orders-map-overlay">
+  <div class="orders-map-box">
+    <div class="orders-map-head">
+      <h3>🗺️ خريطة الأوردرات</h3>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div class="orders-map-scope">
+          <button id="orders-map-scope-unassigned" class="active" onclick="setOrdersMapScope('unassigned')">لسه من غير سائق</button>
+          <button id="orders-map-scope-all" onclick="setOrdersMapScope('all')">كل الأوردرات</button>
+        </div>
+        <button class="orders-map-close" onclick="closeOrdersMap()">✕</button>
+      </div>
+    </div>
+    <div id="orders-map-status" style="display:none; padding:10px 18px; font-size:13px; color:#92400e; background:#fffbeb; border-bottom:1px solid #fde68a; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <span id="orders-map-status-text"></span>
+      <button onclick="loadOrdersMapData(true)" style="border:none; background:#f59e0b; color:#fff; font-weight:700; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:12px; white-space:nowrap;">🔄 إعادة المحاولة</button>
+    </div>
+    <div id="orders-map-canvas"></div>
+    <div class="orders-map-legend">
+      <span><i style="background:#10b981;"></i> تسليم (لسه من غير سائق)</span>
+      <span><i style="background:#cbd5e1;"></i> تسليم (مُعيَّن لسائق)</span>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="modal-ov" id="modal">
+  <div class="modal">
+    <h3 id="m-title">Confirm Action</h3>
+    <p id="m-body">Are you sure you want to proceed?</p>
+    <div class="modal-btns">
+      <button class="m-cancel"  onclick="closeModal()">Cancel</button>
+      <button class="m-confirm" id="m-confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="prompt-modal">
+  <div class="modal">
+    <h3 id="pm-title">Enter value</h3>
+    <input type="text" id="pm-input" placeholder="">
+    <div class="modal-btns">
+      <button class="m-cancel" id="pm-cancel">Cancel</button>
+      <button class="m-confirm" id="pm-confirm">OK</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-ov" id="action-modal">
+  <div class="modal" id="action-modal-inner">
+    <div class="amodal-header" id="amodal-header">
+      <div class="amodal-icon" id="amodal-icon"></div>
+      <div class="amodal-title-wrap">
+        <div class="amodal-type" id="amodal-type"></div>
+        <div class="amodal-name" id="amodal-driver-name"></div>
+      </div>
+    </div>
+
+    <div class="amodal-body">
+      <div class="afield">
+        <label class="afield-label">رقم الأوردر (Order ID)</label>
+        <input type="text" id="amodal-order-id" placeholder="مثال: 1023" inputmode="numeric" style="direction:ltr; text-align:right;">
+      </div>
+      <div class="afield" id="reason-field">
+        <label class="afield-label">السبب (Reason)</label>
+        <div class="reason-chips" id="reason-chips"></div>
+        <textarea id="amodal-reason" placeholder="أو اكتب سبباً آخر هنا..."></textarea>
+      </div>
+    </div>
+
+    <div class="amodal-footer">
+      <button class="abtn-cancel" onclick="closeActionModal()">إلغاء</button>
+      <button class="abtn-confirm" id="amodal-confirm-btn" onclick="submitAction()"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PW = "{{ admin_pw }}";
+const H  = {'Content-Type':'application/json','X-Admin-PW':PW};
+
+// ── SHIFT STATE ──
+let shiftActive = false;
+
+function setShiftBtnUI(active) {
+  shiftActive = active;
+  const btn = document.getElementById('shift-btn');
+  if (!btn) return;
+  if (active) {
+    btn.textContent = '⏹️ End Shift';
+    btn.classList.add('shift-running');
+  } else {
+    btn.textContent = '▶️ Start Shift';
+    btn.classList.remove('shift-running');
+  }
+}
+
+async function loadShiftStatus() {
+  try {
+    let res = await fetch('/api/shift/status', {headers:{'X-Admin-PW':PW}});
+    let d = await res.json();
+    setShiftBtnUI(!!d.active);
+  } catch(e) {}
+}
+
+function onShiftBtnClick() {
+  if (shiftActive) {
+    confirmEndShift();
+  } else {
+    confirmStartShift();
+  }
+}
+
+function confirmStartShift() {
+  show('Start Shift', 'هيتم تصفير إحصائيات الداشبورد (Total/Delivered/Missed/Returned) عشان يبدأ عد جديد للشيفت. السواقين الموجودين دلوقتي هيفضلوا زي ما هما. متابعة؟', async () => {
+    closeModal();
+    try {
+      let res = await fetch('/api/shift/start', {method:'POST', headers:H});
+      let d = await res.json();
+      if (!d.ok) { notifyError('حصل خطأ في بدء الشيفت: ' + (d.error || '')); return; }
+      setShiftBtnUI(true);
+      loadDashboardStats();
+    } catch(e) { console.error(e); notifyError('حصل خطأ في بدء الشيفت'); }
+  });
+}
+
+function confirmEndShift() {
+  show('End Shift', 'هيتم تجهيز تقرير الشيفت الكامل (الأوردرات، الميس، المرتجع، الإحصائيات) ونزوله ملف إكسل منسّق على جهازك. متابعة؟', async () => {
+    closeModal();
+    await runEndShift();
+  });
+}
+
+// 🔴 الملف بيتبني بالكامل (تنسيق/ألوان/حدود) سيرفر-سايد في /api/shift/report.
+// هنا بنجيبه كـ blob وننزله مباشرة — السيرفر بيقفل الشيفت تلقائيًا بعد ما يبني الملف بنجاح.
+async function runEndShift() {
+  const btn = document.getElementById('shift-btn');
+  if (btn) { btn.textContent = '⏳ جاري التجهيز...'; btn.disabled = true; }
+  try {
+    let res = await fetch('/api/shift/report', {headers:{'X-Admin-PW':PW}});
+
+    if (!res.ok) {
+      let errMsg = 'حصل خطأ في تجهيز التقرير';
+      try { let errData = await res.json(); errMsg = errData.error || errMsg; } catch(e) {}
+      notifyError(errMsg);
+      return;
+    }
+
+    const blob = await res.blob();
+    let fname = 'Shift_Report.xlsx';
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match) fname = match[1];
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+
+    setShiftBtnUI(false);
+    loadDashboardStats();
+  } catch(e) {
+    console.error(e);
+    notifyError('حصل خطأ أثناء إنهاء الشيفت. حاول تاني.');
+  } finally {
+    if (btn) { btn.disabled = false; if (!shiftActive) { btn.textContent = '▶️ Start Shift'; } }
+  }
+}
+
+const socket = io();
+
+socket.on('shift_changed', function(data) {
+  setShiftBtnUI(!!data.active);
+  loadDashboardStats();
+});
+
+// ── NEW DISPATCHER ORDER SOCKET LISTENERS ──
+socket.on('incoming_dispatcher_order', function(data) {
+  showOrderToast(data);
+  loadDispatcherOrders();
+});
+socket.on('dispatcher_order_time_updated', function(data) {
+  if (data && data.id !== undefined) {
+    const secs = parseHrTimeToSeconds(data.time);
+    dispatcherTimers[data.id] = secs !== null ? (Date.now() + secs * 1000) : null;
+  }
+});
+socket.on('dispatcher_update', function() {
+  loadDispatcherOrders();
+});
+socket.on('driver_assigned', function(data) {
+  loadDispatcherOrders();
+  load();
+});
+
+function showOrderToast(data) {
+  let container = document.getElementById('checkin-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'checkin-toast-container';
+    container.style.cssText = 'position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;';
+    document.body.appendChild(container);
+  }
+  if (container.children.length >= 4) container.removeChild(container.firstChild);
+
+  let toast = document.createElement('div');
+  toast.innerHTML = `
+    <div style="font-size:24px; margin-right: 12px; display:flex; align-items:center;">📦</div>
+    <div style="display:flex; flex-direction:column; text-align: left; direction: ltr; flex: 1;">
+      <span style="font-weight:900; color:var(--primary); font-size:15px; display:flex; justify-content:space-between; width:100%;">New Order! <span style="font-size:11px; color:#94a3b8; font-weight:bold;">Just Now</span></span>
+      <span style="font-size:11px; color:var(--text-main); margin-top: 2px;">
+        <strong>From:</strong> ${esc(data.pickup||'')}<br>
+        <strong>To:</strong> ${esc(data.dropoff||'')}
+      </span>
+    </div>
+  `;
+  toast.style.cssText = 'background:#fff; border:1px solid var(--border); border-left: 5px solid var(--primary); border-radius:12px; padding:12px; display:flex; align-items:center; box-shadow:0 10px 25px rgba(0,0,0,.15); pointer-events:auto; animation:toastIn 0.4s cubic-bezier(.34,1.56,.64,1) forwards; min-width:260px; max-width:300px; cursor:pointer;';
+  toast.onclick = function() {
+      toast.style.animation = 'toastOut 0.3s ease forwards';
+      setTimeout(() => toast.remove(), 300);
+  };
+  container.appendChild(toast);
+  setTimeout(() => {
+      if(toast.parentElement) {
+          toast.style.animation = 'toastOut 0.4s ease forwards';
+          setTimeout(() => toast.remove(), 400);
+      }
+  }, 6000);
+}
+
+socket.on('checkin_new', function(data) {
+  load();
+  if (data.event_type === 'new_turn') {
+    showNewTurnToast(data.name, data.ticket, data.orders_count);
+  } else {
+    showCheckinToast(data.name, data.ticket);
+  }
+});
+
+function showCheckinToast(name, ticket) {
+  let container = document.getElementById('checkin-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'checkin-toast-container';
+    container.style.cssText = 'position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;';
+    document.body.appendChild(container);
+  }
+  let toast = document.createElement('div');
+  let badge = ticket ? `<span style="background:var(--primary);color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700;margin-left:6px;">#${ticket}</span>` : '';
+  toast.innerHTML = `<span style="font-size:18px;">📥</span><span style="font-weight:700;font-size:13px;color:var(--text-main);">${name}</span>${badge}`;
+  toast.style.cssText = 'background:var(--card);border:1px solid var(--border); border-left:4px solid #10b981; border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 20px rgba(0,0,0,.1);pointer-events:auto;animation:toastIn 0.4s cubic-bezier(.34,1.56,.64,1) forwards;';
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.animation = 'toastOut 0.3s ease forwards'; setTimeout(() => toast.remove(), 320); }, 4000);
+}
+
+// 🔄 تأكيد بصري مخصص: سائق كان "Out" وسكان تاني → سلّم الأوردر ودخل آخر الطابور بدور جديد
+function showNewTurnToast(name, ticket, ordersCount) {
+  let container = document.getElementById('checkin-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'checkin-toast-container';
+    container.style.cssText = 'position:fixed;top:80px;right:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;';
+    document.body.appendChild(container);
+  }
+  if (container.children.length >= 4) {
+    container.removeChild(container.firstChild);
+  }
+  let badge = ticket ? `<span style="background:#0A192F;color:#fff;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;">#${ticket}</span>` : '';
+  let ordersBadge = ordersCount ? `<span style="background:#dcfce7;color:#16a34a;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;">${ordersCount} توصيلة</span>` : '';
+  let toast = document.createElement('div');
+  toast.innerHTML = `
+    <div style="font-size:26px; line-height:1; display:flex; align-items:center;">🔄</div>
+    <div style="display:flex; flex-direction:column; gap:3px; flex:1;">
+      <span style="font-weight:900; color:#16a34a; font-size:14px;">دور جديد — رجع للطابور</span>
+      <span style="font-weight:800; font-size:14px; color:var(--text-main);">${name}</span>
+      <div style="display:flex; gap:6px; margin-top:2px;">${badge}${ordersBadge}</div>
+    </div>
+  `;
+  toast.style.cssText = 'background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #16a34a; border-radius:12px; padding:12px 14px; display:flex; align-items:flex-start; gap:10px; box-shadow:0 10px 25px rgba(22,163,74,.18); pointer-events:auto; animation:toastIn 0.4s cubic-bezier(.34,1.56,.64,1) forwards; min-width:240px; max-width:300px; cursor:pointer;';
+  toast.onclick = function() {
+    toast.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  };
+  container.appendChild(toast);
+  setTimeout(() => {
+    if (toast.parentElement) {
+      toast.style.animation = 'toastOut 0.4s ease forwards';
+      setTimeout(() => toast.remove(), 400);
+    }
+  }, 5500);
+}
+
+// ══════════════════════════════════════════════════════════
+// 🔔 UNIFIED NOTIFICATION SYSTEM — replaces browser alert()
+// ══════════════════════════════════════════════════════════
+function notify(message, type = 'info', durationMs = 4000) {
+  let container = document.getElementById('notify-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'notify-container';
+    document.body.appendChild(container);
+  }
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  let toast = document.createElement('div');
+  toast.className = `notify-toast notify-${type}`;
+  toast.innerHTML = `<span class="notify-icon">${icons[type] || icons.info}</span><span class="notify-msg"></span><button class="notify-close" aria-label="Close">✕</button>`;
+  toast.querySelector('.notify-msg').textContent = message; // textContent, not innerHTML — avoids injecting markup from error strings
+  const dismiss = () => {
+    toast.style.animation = 'toastOut 0.25s ease forwards';
+    setTimeout(() => toast.remove(), 250);
+  };
+  toast.querySelector('.notify-close').onclick = dismiss;
+  container.appendChild(toast);
+  if (durationMs > 0) setTimeout(dismiss, durationMs);
+  return dismiss;
+}
+function notifySuccess(msg, ms) { return notify(msg, 'success', ms); }
+function notifyError(msg, ms)   { return notify(msg, 'error', ms ?? 5000); }
+function notifyWarning(msg, ms) { return notify(msg, 'warning', ms); }
+
+// ── Promise-based text input modal — replaces browser prompt() ──
+function promptModal(title, defaultValue = '', placeholder = '') {
+  return new Promise((resolve) => {
+    const ov = document.getElementById('prompt-modal');
+    const input = document.getElementById('pm-input');
+    document.getElementById('pm-title').textContent = title;
+    input.value = defaultValue;
+    input.placeholder = placeholder;
+    ov.classList.add('show');
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+
+    const cleanup = (result) => {
+      ov.classList.remove('show');
+      input.removeEventListener('keydown', onKey);
+      resolve(result);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); cleanup(input.value.trim() || null); }
+      if (e.key === 'Escape') { e.preventDefault(); cleanup(null); }
+    };
+    input.addEventListener('keydown', onKey);
+    document.getElementById('pm-confirm').onclick = () => cleanup(input.value.trim() || null);
+    document.getElementById('pm-cancel').onclick = () => cleanup(null);
+  });
+}
+
+async function exportMisses() { let fileName = await promptModal("Enter file name for Miss report:", "miss_report.csv"); if (!fileName) return; if (!fileName.endsWith('.csv')) fileName += '.csv'; executeExport('/api/export_misses', fileName); }
+async function exportReturns() { let fileName = await promptModal("Enter file name for Returns report:", "return_report.csv"); if (!fileName) return; if (!fileName.endsWith('.csv')) fileName += '.csv'; executeExport('/api/export_returns', fileName); }
+async function executeExport(url, fileName) {
+  try {
+    let res = await fetch(url, { headers: { 'X-Admin-PW': PW } }); if (!res.ok) throw new Error("Failed");
+    let blob = await res.blob(); let blobUrl = window.URL.createObjectURL(blob);
+    let a = document.createElement('a'); a.href = blobUrl; a.download = fileName; document.body.appendChild(a); a.click(); a.remove(); window.URL.revokeObjectURL(blobUrl);
+  } catch (e) { notifyError("Error during export"); console.error(e); }
+}
+
+const MISS_REASONS   = ['زحمة مرورية', 'العميل لا يرد', 'عنوان خاطئ', 'إلغاء الطلب', 'مشكلة بالتطبيق', 'سبب آخر'];
+const RETURN_REASONS = ['رفض الاستلام', 'العنوان مغلق', 'العميل غير متواجد', 'تالف', 'سبب آخر'];
+let _actionId = null; let _actionType = null; 
+
+function openActionModal(id, name, type) {
+  _actionId = id; _actionType = type;
+  const isMiss = type === 'miss'; const btn = document.getElementById('amodal-confirm-btn');
+  document.getElementById('amodal-icon').textContent = isMiss ? '❌' : '🔄';
+  document.getElementById('amodal-type').textContent = isMiss ? 'تسجيل ميس (Miss)' : 'تسجيل مرتجع (Return)';
+  document.getElementById('amodal-driver-name').textContent = name;
+  btn.textContent = isMiss ? 'تأكيد الميس' : 'تأكيد المرتجع';
+  
+  const reasons = isMiss ? MISS_REASONS : RETURN_REASONS; 
+  const chips = document.getElementById('reason-chips');
+  chips.innerHTML = reasons.map(r => `<div class="chip" onclick="selectChip(this,'${r}')">${r}</div>`).join('');
+  
+  document.getElementById('reason-field').style.display = '';
+  document.getElementById('amodal-order-id').value = ''; document.getElementById('amodal-reason').value = '';
+  document.getElementById('action-modal').classList.add('show');
+  setTimeout(() => document.getElementById('amodal-order-id').focus(), 300);
+}
+function selectChip(el, value) {
+  document.querySelectorAll('#reason-chips .chip').forEach(c => c.classList.remove('active')); el.classList.add('active');
+  document.getElementById('amodal-reason').value = value === 'سبب آخر' ? '' : value;
+  if (value !== 'سبب آخر') document.getElementById('amodal-reason').placeholder = ''; else document.getElementById('amodal-reason').focus();
+}
+function closeActionModal() { document.getElementById('action-modal').classList.remove('show'); _actionId = null; _actionType = null; }
+async function submitAction() {
+  const orderId = document.getElementById('amodal-order-id').value.trim(); const reason = document.getElementById('amodal-reason').value.trim();
+  if (!orderId) { highlightInput('amodal-order-id'); return; }
+  if (_actionType === 'miss' && !reason) { highlightInput('amodal-reason'); return; }
+  const btn = document.getElementById('amodal-confirm-btn'); btn.disabled = true; btn.textContent = 'جاري التنفيذ...';
+  await fetch(`/api/status/${_actionId}/${_actionType}`, { method:'POST', headers:H, body: JSON.stringify({ order_id: orderId, reason: reason }) });
+  closeActionModal(); btn.disabled = false; load();
+}
+function highlightInput(id) {
+  const el = document.getElementById(id); el.focus(); el.style.borderColor = '#ef4444'; el.style.transform = 'translateX(4px)';
+  setTimeout(() => { el.style.borderColor = 'var(--primary)'; el.style.transform = 'translateX(0)'; }, 300);
+}
+document.getElementById('action-modal').addEventListener('click', e => { if (e.target.id === 'action-modal') closeActionModal(); });
+async function promptMiss(id, name) { openActionModal(id, name, 'miss'); }
+async function promptReturn(id, name) { openActionModal(id, name, 'return'); }
+
+async function addDriver() { let name = document.getElementById('newDriverName').value.trim(); if (!name) return; await fetch('/api/add_driver', {method:'POST', headers:H, body:JSON.stringify({name})}); document.getElementById('newDriverName').value = ''; load(); }
+async function renameDriver(id, oldName) {
+  let newName = await promptModal("Change driver name:", oldName);
+  if (newName && newName.trim() !== oldName) {
+    fetch(`/api/rename/${id}`, {method:'POST', headers:H, body:JSON.stringify({name:newName.trim()})}).then(()=>load()).catch(e=>notifyError(String(e)));
+  }
+}
+
+// --- Import functions hidden for brevity but retained fully ---
+async function openImportModal() { document.getElementById('import-start-ticket').value = ''; document.getElementById('import-file-input').value = ''; document.getElementById('import-modal').classList.add('show'); }
+function closeImportModal() { document.getElementById('import-modal').classList.remove('show'); }
+document.getElementById('import-modal').addEventListener('click', e => { if (e.target.id === 'import-modal') closeImportModal(); });
+async function executeAdvancedImport() {
+  let fileInput = document.getElementById('import-file-input'); let startTicketInput = document.getElementById('import-start-ticket').value.trim();
+  if (!fileInput.files.length) { notifyWarning("الرجاء اختيار ملف أولاً"); return; }
+  let minTicket = startTicketInput ? parseInt(startTicketInput, 10) : 0; if (isNaN(minTicket)) minTicket = 0;
+  let file = fileInput.files[0]; let btn = document.getElementById('import-confirm-btn'); btn.disabled = true; btn.textContent = '⏳ جاري الاستيراد...';
+  let reader = new FileReader();
+  reader.onload = async function(evt) {
+    try {
+      let data = evt.target.result; let workbook = XLSX.read(data, {type: 'binary'}); let firstSheet = workbook.SheetNames[0]; let excelRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], {header: 1, raw: false});
+      let emailsToImport = []; let seen = new Set(); let ticketCol = -1; let emailCol = -1; let dateCol = -1; let headerRow = -1;
+      for (let i = 0; i < Math.min(excelRows.length, 10); i++) {
+        let row = excelRows[i]; if(!row) continue;
+        for (let j = 0; j < row.length; j++) { let val = String(row[j]).toLowerCase(); if (ticketCol === -1 && (val.includes('ticket') || val.includes('رقم'))) ticketCol = j; if (emailCol === -1 && (val.includes('name') || val.includes('email') || val.includes('اسم'))) emailCol = j; if (dateCol === -1 && (val === 'date' || val.includes('تاريخ') || val === 'التاريخ')) dateCol = j; }
+        if (ticketCol !== -1 && emailCol !== -1) { headerRow = i; break; }
+      }
+      if (emailCol === -1) { notifyError("لم يتم العثور على عمود الإيميلات أو الأسماء"); closeImportModal(); btn.disabled = false; btn.textContent = 'استيراد الآن'; return; }
+      if (ticketCol === -1) { notifyError("لم يتم العثور على عمود الأرقام (Tickets)"); closeImportModal(); btn.disabled = false; btn.textContent = 'استيراد الآن'; return; }
+      let t = new Date(); let y = t.getFullYear(); let m = String(t.getMonth() + 1).padStart(2, '0'); let d = String(t.getDate()).padStart(2, '0'); let m1 = String(t.getMonth() + 1); let d1 = String(t.getDate()); 
+      let todayFormats = [`${y}-${m}-${d}`, `${m}/${d}/${y}`, `${d}/${m}/${y}`, `${m1}/${d1}/${y}`, `${d1}/${m1}/${y}`, `${y}/${m}/${d}`, `${d}-${m}-${y}`, `${m}-${d}-${y}`];
+      let excelEpoch = new Date(Date.UTC(1899, 11, 30)); let todaySerial = Math.round((Date.UTC(y, t.getMonth(), t.getDate()) - excelEpoch.getTime()) / 86400000);
+      function isDateToday(cellValue) {
+         if (!cellValue) return false; let str = String(cellValue).trim();
+         if (todayFormats.some(format => str === format || str.startsWith(format + ' ') || str.startsWith(format + 'T'))) return true;
+         if (todayFormats.some(format => str.includes(format))) return true;
+         let num = parseFloat(str); if (!isNaN(num) && Math.floor(num) === todaySerial) return true;
+         try { let parsed = new Date(str); if (!isNaN(parsed.getTime())) { return parsed.getFullYear() === y && parsed.getMonth() === t.getMonth() && parsed.getDate() === t.getDate(); } } catch(e) {}
+         return false;
+      }
+      let startIdx = headerRow !== -1 ? headerRow + 1 : 0;
+      for (let i = startIdx; i < excelRows.length; i++) {
+        let row = excelRows[i]; if (!row || row.length === 0) continue;
+        let tStr = row[ticketCol]; let eStr = row[emailCol]; let dCell = dateCol !== -1 ? row[dateCol] : null;
+        if (!eStr || typeof eStr !== 'string' || eStr.trim() === '') continue;
+        let tNum = parseInt(tStr, 10); if (isNaN(tNum)) continue;
+        if (tNum >= minTicket) {
+            let passesDateCheck = true; if (dateCol !== -1) { passesDateCheck = isDateToday(dCell); }
+            if (passesDateCheck) { let email = eStr.trim(); if (!seen.has(email)) { seen.add(email); emailsToImport.push({ email: email, ticket: tNum }); } }
+        }
+      }
+      if (emailsToImport.length === 0) { let displayDate = `${d1}/${m1}/${y}`; let msg = dateCol !== -1 ? `⚠️ لم يتم العثور على تذاكر مسجلة لتاريخ اليوم (${displayDate}) وتبدأ من الرقم ${minTicket}` : `⚠️ لم يتم العثور على تذاكر تبدأ من ${minTicket}`; notifyWarning(msg); btn.disabled = false; btn.textContent = 'استيراد الآن'; return; }
+      emailsToImport.sort((a, b) => a.ticket - b.ticket);
+      let importedCount = 0; let skippedCount = 0;
+      for (let item of emailsToImport) {
+          let res = await fetch('/api/checkin_webhook', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Webhook-Secret': 'qcd2-checkin-sync' }, body: JSON.stringify({ name: item.email, ticket: item.ticket }) });
+          let data = await res.json(); if (data.ok && data.added) importedCount++; else if (data.ok && data.skipped) skippedCount++;
+      }
+      closeImportModal(); btn.disabled = false; btn.textContent = 'استيراد الآن'; load(); notifySuccess(`اكتمل الاستيراد لتاريخ اليوم! تمت إضافة: ${importedCount} — موجود بالفعل: ${skippedCount}`);
+    } catch (err) { console.error(err); notifyError("حدث خطأ في القراءة، تأكد من صحة الملف"); btn.disabled = false; btn.textContent = 'استيراد الآن'; }
+  };
+  reader.readAsBinaryString(file);
+}
+
+// ── ALLOWED ACCOUNTS (Stats Whitelist) ──
+let allowedAccountsCache = [];
+
+async function refreshAllowedCount() {
+  try {
+    let list = await (await fetch('/api/allowed_accounts', { headers: { 'X-Admin-PW': PW } })).json();
+    allowedAccountsCache = list;
+    document.getElementById('allowed-count').textContent = list.length;
+    let modalCountEl = document.getElementById('allowed-modal-count');
+    if (modalCountEl) modalCountEl.textContent = list.length;
+  } catch (e) { console.error(e); }
+}
+
+function openAllowedAccountsModal() {
+  document.getElementById('allowed-filter-input').value = '';
+  document.getElementById('allowed-add-input').value = '';
+  renderAllowedList();
+  document.getElementById('allowed-modal').classList.add('show');
+}
+function closeAllowedAccountsModal() { document.getElementById('allowed-modal').classList.remove('show'); }
+document.getElementById('allowed-modal').addEventListener('click', e => { if (e.target.id === 'allowed-modal') closeAllowedAccountsModal(); });
+
+function renderAllowedList() {
+  let q = document.getElementById('allowed-filter-input').value.trim().toLowerCase();
+  let box = document.getElementById('allowed-list-box');
+  let filtered = q ? allowedAccountsCache.filter(e => e.toLowerCase().includes(q)) : allowedAccountsCache;
+  if (!filtered.length) { box.innerHTML = '<div class="allowed-empty">No accounts found</div>'; return; }
+  box.innerHTML = filtered.map(email => `
+    <div class="allowed-item">
+      <span class="email">${esc(email)}</span>
+      <button class="rm-btn" onclick="removeAllowedAccount('${esc(email)}')" title="Remove">✕</button>
+    </div>
+  `).join('');
+}
+
+async function addAllowedAccount() {
+  let input = document.getElementById('allowed-add-input');
+  let email = input.value.trim().toLowerCase();
+  if (!email || !email.includes('@')) { notifyWarning('من فضلك اكتب إيميل صحيح'); return; }
+  await fetch('/api/allowed_accounts/add', { method: 'POST', headers: H, body: JSON.stringify({ email }) });
+  input.value = '';
+  await refreshAllowedCount();
+  renderAllowedList();
+}
+
+async function removeAllowedAccount(email) {
+  await fetch('/api/allowed_accounts/remove', { method: 'POST', headers: H, body: JSON.stringify({ email }) });
+  await refreshAllowedCount();
+  renderAllowedList();
+}
+
+function clearAllAllowedAccounts() {
+  show('Clear Allowed Accounts', 'Are you sure you want to remove ALL allowed accounts? This will make Delivered/Missed/Returned stats count 0 for everyone until you add accounts again.', async () => {
+    closeModal();
+    await fetch('/api/allowed_accounts/clear', { method: 'POST', headers: H });
+    await refreshAllowedCount();
+    renderAllowedList();
+  });
+}
+
+async function importAllowedXlsx(input) {
+  if (!input.files.length) return;
+  let file = input.files[0];
+  let formData = new FormData();
+  formData.append('file', file);
+  try {
+    let res = await fetch('/api/allowed_accounts/import_xlsx', { method: 'POST', headers: { 'X-Admin-PW': PW }, body: formData });
+    let data = await res.json();
+    input.value = '';
+    if (data.ok) {
+      await refreshAllowedCount();
+      notifySuccess(`تم الاستيراد! إيميلات جديدة: ${data.imported} — الإجمالي الآن: ${data.total}`);
+    } else {
+      notifyError('فشل الاستيراد: ' + (data.error || 'Unknown error'));
+    }
+  } catch (e) { console.error(e); notifyError('حدث خطأ أثناء رفع الملف'); input.value = ''; }
+}
+
+refreshAllowedCount();
+
+// ── STATS BAR TOGGLE (Search + Dashboard cards row) ──
+function toggleStatsBar() {
+  let bar = document.getElementById('stats-bar');
+  let btn = document.getElementById('stats-toggle-btn');
+  let collapsed = bar.classList.toggle('collapsed');
+  btn.classList.toggle('active', !collapsed);
+  try { sessionStorage.setItem('statsBarCollapsed', collapsed ? '1' : '0'); } catch (e) {}
+}
+// استرجاع حالة الإغلاق لو كانت مقفولة قبل كده في نفس الجلسة
+(function restoreStatsBarState() {
+  try {
+    if (sessionStorage.getItem('statsBarCollapsed') === '1') {
+      document.getElementById('stats-bar').classList.add('collapsed');
+    } else {
+      document.getElementById('stats-toggle-btn').classList.add('active');
+    }
+  } catch (e) {}
+})();
+
+// ── MENU MODAL (Quick Add / Import / Allowed Accounts / Contact / Export / QR / Danger Zone) ──
+function openMenuModal() { document.getElementById('menu-modal').classList.add('show'); }
+function closeMenuModal() { document.getElementById('menu-modal').classList.remove('show'); }
+document.getElementById('menu-modal').addEventListener('click', e => { if (e.target.id === 'menu-modal') closeMenuModal(); });
+
+// ══════════════════════════════════════════════════════════════
+// 💰 FINES MODAL — إضافة / عرض / تعديل / حذف / Export
+// ══════════════════════════════════════════════════════════════
+let finesCache = [];
+
+function openFinesModal() {
+  document.getElementById('fines-modal').classList.add('show');
+  populateFineDriverSelect();
+  loadFines();
+}
+function closeFinesModal() { document.getElementById('fines-modal').classList.remove('show'); }
+document.getElementById('fines-modal').addEventListener('click', e => { if (e.target.id === 'fines-modal') closeFinesModal(); });
+
+function populateFineDriverSelect() {
+  const sel = document.getElementById('fine-driver-select');
+  const current = sel.value;
+  const names = [...new Set(allDriversCache.map(d => d.name))].sort((a,b)=>a.localeCompare(b,'ar'));
+  sel.innerHTML = '<option value="">— اختار السواق —</option>' + names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if (names.includes(current)) sel.value = current;
+}
+
+function toggleFineManualName() {
+  const manual = document.getElementById('fine-manual-toggle').checked;
+  document.getElementById('fine-driver-select').style.display = manual ? 'none' : 'block';
+  document.getElementById('fine-driver-manual').style.display = manual ? 'block' : 'none';
+}
+
+async function loadFines() {
+  try {
+    let res = await fetch('/api/fines', {headers:{'X-Admin-PW':PW}});
+    let d = await res.json();
+    finesCache = d.fines || [];
+    txt('fines-total-amount', (d.total || 0).toFixed(2));
+    txt('fines-total-count', d.count || 0);
+    renderFinesList();
+  } catch(e) { console.error(e); }
+}
+
+function renderFinesList() {
+  const q = (document.getElementById('fines-search')?.value || '').trim().toLowerCase();
+  const rows = finesCache.filter(f => !q || f.driver_name.toLowerCase().includes(q));
+  const empty = document.getElementById('fines-empty');
+  const table = document.getElementById('fines-table');
+  const tbody = document.getElementById('fines-tbody');
+
+  if (!rows.length) {
+    empty.style.display = 'block';
+    table.style.display = 'none';
+    empty.textContent = finesCache.length ? 'مفيش نتايج تطابق البحث' : 'لا توجد غرامات مسجلة لسه';
+    return;
+  }
+  empty.style.display = 'none';
+  table.style.display = 'table';
+
+  tbody.innerHTML = rows.map(f => `
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:9px 12px; font-size:13px; font-weight:700; color:var(--text-main);">${esc(f.driver_name)}</td>
+      <td style="padding:9px 12px; text-align:center; font-size:13px; font-weight:800; color:var(--danger);">${Number(f.amount).toFixed(2)}</td>
+      <td style="padding:9px 12px; font-size:12.5px; color:var(--text-muted);">${esc(f.reason || '—')}</td>
+      <td style="padding:9px 12px; text-align:center; font-size:11.5px; color:var(--text-muted); white-space:nowrap;">${esc(f.timestamp || '')}</td>
+      <td style="padding:9px 12px; text-align:center;">
+        <button onclick="deleteFine(${f.id})" title="حذف" style="background:transparent; border:none; cursor:pointer; font-size:15px; color:var(--danger);">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function submitAddFine() {
+  const manual = document.getElementById('fine-manual-toggle').checked;
+  const driverName = manual
+    ? document.getElementById('fine-driver-manual').value.trim()
+    : document.getElementById('fine-driver-select').value;
+  const amountInput = document.getElementById('fine-amount');
+  const amount = parseFloat(amountInput.value);
+  const reason = document.getElementById('fine-reason').value.trim();
+
+  if (!driverName) { highlightInput(manual ? 'fine-driver-manual' : 'fine-driver-select'); return; }
+  if (!amount || amount <= 0) { highlightInput('fine-amount'); return; }
+
+  try {
+    let res = await fetch('/api/fines/add', {
+      method: 'POST', headers: H,
+      body: JSON.stringify({ driver_name: driverName, amount: amount, reason: reason })
+    });
+    let d = await res.json();
+    if (!d.ok) { notifyError(d.error || 'حصل خطأ في تسجيل الغرامة'); return; }
+
+    document.getElementById('fine-driver-select').value = '';
+    document.getElementById('fine-driver-manual').value = '';
+    document.getElementById('fine-amount').value = '';
+    document.getElementById('fine-reason').value = '';
+    notifySuccess(`تم تسجيل غرامة ${amount.toFixed(2)} على ${driverName}`);
+    loadFines();
+  } catch(e) { console.error(e); notifyError('حصل خطأ في تسجيل الغرامة'); }
+}
+
+function deleteFine(id) {
+  show('حذف الغرامة', 'متأكد إنك عايز تحذف الغرامة دي؟ مش هينفع ترجعها تاني.', async () => {
+    closeModal();
+    try { await fetch(`/api/fines/delete/${id}`, {method:'POST', headers:H}); loadFines(); }
+    catch(e) { console.error(e); notifyError('حصل خطأ في الحذف'); }
+  });
+}
+
+function confirmClearFines() {
+  show('مسح كل الغرامات', 'متأكد إنك عايز تمسح كل الغرامات المسجلة؟ الإجراء ده نهائي ومش هينفع يترجع.', async () => {
+    closeModal();
+    try { await fetch('/api/fines/clear', {method:'POST', headers:H}); loadFines(); }
+    catch(e) { console.error(e); notifyError('حصل خطأ في المسح'); }
+  });
+}
+
+async function exportFines() {
+  try {
+    let res = await fetch('/api/fines/export', {headers:{'X-Admin-PW':PW}});
+    if (!res.ok) { notifyError('حصل خطأ في تجهيز ملف الغرامات'); return; }
+    const blob = await res.blob();
+    let fname = 'Fines_Report.xlsx';
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match) fname = match[1];
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch(e) { console.error(e); notifyError('حصل خطأ في تنزيل ملف الغرامات'); }
+}
+
+socket.on('fines_updated', function() {
+  if (document.getElementById('fines-modal').classList.contains('show')) loadFines();
+});
+
+function confirmClearWaitingOut() { 
+  show('Clear Waiting & Out', 'Are you sure you want to delete ALL records in Waiting and Out?', async () => { 
+    closeModal();
+    try {
+      let data = await(await fetch('/api/list', {headers: {'X-Admin-PW':PW}})).json();
+      let toDelete = data.filter(x => x.status === 'waiting' || x.status === 'out');
+      for (let driver of toDelete) { await fetch(`/api/delete/${driver.id}`, {method:'POST', headers:H}); killTimer(driver.id); }
+      load();
+    } catch(e) { console.error(e); notifyError('Error clearing data'); }
+  }); 
+}
+
+const BT = {}; const BREAK_SECS = 3600;
+function parseHms(str) {
+  if (!str) return null;
+  let [h,m,s] = str.split(':').map(Number);
+  let d = new Date(); d.setHours(h,m,s,0);
+  if (d > new Date()) d.setDate(d.getDate()-1);
+  return d;
+}
+// bs = break_start, paused = break_paused (0/1), accum = break_paused_accum (seconds), pauseStarted = break_pause_started
+function getTimer(id, bs, paused, accum, pauseStarted) {
+  let t = BT[id];
+  if (!t) { t = BT[id] = { rem: BREAK_SECS, paused: false, iv: null }; }
+
+  // Recompute remaining time fresh from server-provided fields every time,
+  // so a stale/incorrect client-side value never drifts from what the backend actually knows.
+  let elapsedSecs = 0;
+  const startDt = parseHms(bs);
+  if (startDt) {
+    let totalElapsed = Math.max(0, Math.floor((Date.now() - startDt.getTime()) / 1000));
+    let pausedAccum = accum || 0;
+    if (paused && pauseStarted) {
+      const pauseDt = parseHms(pauseStarted);
+      if (pauseDt) pausedAccum += Math.max(0, Math.floor((Date.now() - pauseDt.getTime()) / 1000));
+    }
+    elapsedSecs = Math.max(0, totalElapsed - pausedAccum);
+  }
+  t.rem = Math.max(0, BREAK_SECS - elapsedSecs);
+  return t;
+}
+function killTimer(id){if(BT[id]?.iv)clearInterval(BT[id].iv);delete BT[id];}
+function startTick(id){ let t=BT[id];if(!t||t.iv)return; t.iv=setInterval(()=>{if(!t.paused&&t.rem>0){t.rem--;refreshDisp(id);}},1000); }
+function refreshDisp(id){
+  let el=document.getElementById('bd-'+id);if(!el)return; let t=BT[id];if(!t)return;
+  let r=t.rem,h=String(Math.floor(r/3600)).padStart(2,'0'),m=String(Math.floor((r%3600)/60)).padStart(2,'0'),s=String(r%60).padStart(2,'0');
+  el.textContent=`${h}:${m}:${s}`;el.className='brk-timer'+(r<300?' urgent':'');
+  let sb=document.getElementById('bs-'+id); if(sb){sb.textContent=t.paused?'Resume':'Pause';}
+}
+async function toggleBreak(id, currentlyPaused){ let action = currentlyPaused ? 'break_resume' : 'break_pause'; await fetch(`/api/status/${id}/${action}`,{method:'POST',headers:H}); load(); }
+
+
+// 🔴 UPDATED TABS FOR MOBILE
+let curTab='waiting'; const TABS=['waiting','out','break'];
+function switchTab(tab){
+  curTab=tab; TABS.forEach(t=>document.getElementById('col-'+t)?.classList.toggle('active',t===tab));
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABS[i]===tab));
+}
+
+let ss=Date.now();
+setInterval(()=>{ let s=Math.floor((Date.now()-ss)/1000); document.getElementById('timer').textContent=[Math.floor(s/3600),Math.floor((s%3600)/60),s%60].map(n=>String(n).padStart(2,'0')).join(':'); },1000);
+
+let _cachedJoinUrl = null;
+
+async function resolveJoinUrl() {
+  if (_cachedJoinUrl) return _cachedJoinUrl;
+  try {
+    let r = await fetch('/api/join_url', { cache: 'no-store' });
+    let d = await r.json();
+    if (d.url && !d.url.includes('127.0.0.1') && !d.url.includes('localhost')) {
+      _cachedJoinUrl = d.url;  // /api/join_url already appends /join
+      return _cachedJoinUrl;
+    }
+  } catch(e) {}
+  // fallback: current host (works if admin is on same network / same machine)
+  _cachedJoinUrl = window.location.origin + '/join';
+  return _cachedJoinUrl;
+}
+
+function applyQR(u) {
+  let qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=3&color=0f172a&data=' + encodeURIComponent(u);
+  let panelImg = document.getElementById('qr-img-panel');
+  if (panelImg) panelImg.src = qrUrl;
+  let panelUrl = document.getElementById('join-url-panel');
+  if (panelUrl) panelUrl.innerHTML = `<a href="${u}" target="_blank">${u}</a>`;
+  let menuImg = document.getElementById('qr-img');
+  if (menuImg) menuImg.src = qrUrl;
+  let menuUrl = document.getElementById('join-url');
+  if (menuUrl) menuUrl.innerHTML = `<a href="${u}" target="_blank">${u}</a>`;
+}
+
+async function loadQR() {
+  let u = await resolveJoinUrl();
+  applyQR(u);
+}
+loadQR();
+// re-poll every 30s in case ngrok URL changes
+setInterval(()=>{ _cachedJoinUrl=null; loadQR(); }, 30000);
+
+async function enlargeQR(){
+  try{
+    let u = await resolveJoinUrl();
+    let w = window.open('', '_blank', 'width=420,height=480,toolbar=no,location=no');
+    w.document.write(`<!DOCTYPE html><html><head><title>QR — Scan to Join</title>
+    <style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    height:100vh;background:#0f172a;font-family:sans-serif;gap:16px;}
+    img{border-radius:16px;border:4px solid #fff;box-shadow:0 8px 32px rgba(0,0,0,.5);}
+    p{color:#94a3b8;font-size:13px;word-break:break-all;text-align:center;max-width:320px;}
+    </style></head><body>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=4&color=0f172a&data=${encodeURIComponent(u)}" width="320" height="320">
+    <p>${u}</p></body></html>`);
+    w.document.close();
+  }catch(e){}
+}
+
+function show(title,body,fn){ document.getElementById('m-title').textContent=title; document.getElementById('m-body').textContent=body; document.getElementById('m-confirm').onclick=fn; document.getElementById('modal').classList.add('show'); }
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+function confirmResetOrders(){ show('Purge Database','Are you sure you want to clear all records?',async()=>{await fetch('/api/reset_orders',{method:'POST',headers:H});closeModal();loadOrders();}); }
+function confirmResetDashboard(){ show('Reset Dashboard','Are you sure you want to reset Total Orders, Delivered, Missed and Returned counters? This cannot be undone.',async()=>{await fetch('/api/reset_dashboard',{method:'POST',headers:H});closeModal();loadDashboardStats();load();}); }
+function confirmDelete(id,name){ show(`Delete Driver ${name}?`,'Are you sure you want to permanently delete this driver?',async()=>{await fetch(`/api/delete/${id}`,{method:'POST',headers:H});killTimer(id);closeModal();load();}); }
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function diff(id,html){let el=document.getElementById(id);if(el&&el._h!==html){el.innerHTML=html;el._h=html;}}
+function txt(id,v){let el=document.getElementById(id);if(el&&el.textContent!==String(v))el.textContent=String(v);}
+
+// ── LOADING INDICATORS ──
+// Shown only if a fetch takes a noticeable moment (avoids flicker on fast local requests)
+function showLoading(el, delayMs = 250) {
+  if (!el) return;
+  clearTimeout(el._loadingTimer);
+  el._loadingTimer = setTimeout(() => {
+    el.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><span>Loading...</span></div>';
+    el._h = el.innerHTML;
+  }, delayMs);
+}
+function clearLoading(el) {
+  if (!el) return;
+  clearTimeout(el._loadingTimer);
+}
+function showLoadError(el) {
+  if (!el) return;
+  clearTimeout(el._loadingTimer);
+  el.innerHTML = '<div class="empty">⚠️ Failed to load. Retrying...</div>';
+  el._h = el.innerHTML;
+}
+
+// Small persistent header indicator for the main polling cycle
+let activeLoads = 0;
+function beginGlobalLoad() {
+  activeLoads++;
+  const dot = document.getElementById('global-load-dot');
+  if (dot) dot.classList.add('active');
+}
+function endGlobalLoad() {
+  activeLoads = Math.max(0, activeLoads - 1);
+  if (activeLoads === 0) {
+    const dot = document.getElementById('global-load-dot');
+    if (dot) dot.classList.remove('active');
+  }
+}
+function parseT(str){ if(!str)return null; let[h,m,s]=str.split(':').map(Number),b=new Date();b.setHours(h,m,s,0); if(b>new Date())b.setDate(b.getDate()-1);return b; }
+
+async function st(id,status){ await fetch(`/api/status/${id}/${status}`,{method:'POST',headers:H}); if(status==='break_out'||status==='done')killTimer(id); load();if(status==='done')loadOrders(); }
+
+let isDrag=false, ws=null;
+
+// ── FLAG STATE (client-side only, persists in memory) ──
+const flaggedDrivers = new Set();
+
+function toggleFlag(id, btn) {
+  const card = btn.closest('.driver-card');
+  if (flaggedDrivers.has(id)) {
+    flaggedDrivers.delete(id);
+    card.classList.remove('flagged');
+  } else {
+    flaggedDrivers.add(id);
+    card.classList.add('flagged');
+  }
+}
+
+// ── 🔔 NOTIFY DRIVER ──
+async function notifyDriver(name, btn) {
+  btn.disabled = true;
+  btn.classList.remove('sent', 'failed');
+  try {
+    const res = await fetch('/api/notify/' + encodeURIComponent(name), { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      btn.classList.add('sent');
+      btn.textContent = '✅';
+      notifySuccess(`إشعار اتبعت لـ ${name} 🔔`);
+      setTimeout(() => { btn.textContent = '🔔'; btn.classList.remove('sent'); btn.disabled = false; }, 2500);
+    } else {
+      btn.classList.add('failed');
+      btn.textContent = '✕';
+      const msg = data.error && data.error.includes('no subscription')
+        ? `${name} لسه ما فتحش التطبيق أو ما وافقش على الإشعارات`
+        : `فشل الإشعار: ${data.error}`;
+      notifyError(msg);
+      setTimeout(() => { btn.textContent = '🔔'; btn.classList.remove('failed'); btn.disabled = false; }, 3000);
+    }
+  } catch(e) {
+    btn.classList.add('failed');
+    notifyError('خطأ في الاتصال');
+    setTimeout(() => { btn.textContent = '🔔'; btn.classList.remove('failed'); btn.disabled = false; }, 3000);
+  }
+}
+
+// ── DRAG LOCK ──
+let dragLocked = false;
+function toggleDragLock() {
+  dragLocked = !dragLocked;
+  const btn = document.getElementById('drag-lock-btn');
+  btn.classList.toggle('locked', dragLocked);
+  btn.title = dragLocked ? 'Unlock waiting queue drag' : 'Lock waiting queue drag';
+  // أعد تهيئة Sortable بالحالة الجديدة
+  initSortable();
+}
+function initSortable(){
+  let el=document.getElementById('waiting-list'); if(ws)ws.destroy();
+  ws=new Sortable(el,{
+    group: 'shared', animation: 250, handle: '.drag-handle', ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+    disabled: dragLocked,
+    onStart(){isDrag=true;},
+    onAdd: async function (evt) {
+      isDrag = false; let name = evt.item.getAttribute('data-name'); evt.item.remove(); 
+      if (name) { await fetch('/api/add_driver', {method:'POST', headers:H, body:JSON.stringify({name})}); load(); }
+    },
+    async onEnd(){
+      isDrag=false; let ids=[...el.querySelectorAll('[data-id]')].map(e=>+e.dataset.id);
+      if(ids.length){
+        await fetch('/api/reorder',{method:'POST',headers:H,body:JSON.stringify({ids})});
+        el.querySelectorAll('.d-pos').forEach((el,i)=>{ el.textContent = i===0 ? '★' : '#'+(i+1); el.closest('.driver-card').classList.toggle('first', i===0); });
+      }
+    }
+  });
+}
+
+async function loadDashboardStats() {
+    try {
+        let res = await fetch('/api/dashboard_stats', {headers:{'X-Admin-PW':PW}});
+        let d = await res.json();
+        txt('ds-date', d.today_date); txt('ds-total', d.total_orders); txt('ds-delivered', d.delivered); txt('ds-missed', d.missed); txt('ds-returned', d.returned); txt('ds-active', d.active_drivers); txt('ds-break', d.break_drivers); txt('ds-s-rate', d.success_rate + '%'); txt('ds-m-rate', d.miss_rate + '%'); txt('ds-r-rate', d.return_rate + '%'); txt('ds-fines-total', (d.fines_total || 0).toFixed(2));
+    } catch(e) {}
+}
+
+// 🔴 عداد تنازلي حي لكل أوردر — بيتقرأ من o.time أول مرة بس، وبعد كده بيعد لوحده في الادمن
+const dispatcherTimers = {}; // { [orderId]: targetTimestampMs }
+
+function parseHrTimeToSeconds(str) {
+    // الصيغة المتوقعة من الديسباتشر: "0:18 hr" => ساعات:دقايق
+    if (!str) return null;
+    const m = String(str).match(/(\d+):(\d+)/);
+    if (!m) return null;
+    const hours = parseInt(m[1], 10) || 0;
+    const minutes = parseInt(m[2], 10) || 0;
+    return hours * 3600 + minutes * 60;
+}
+function formatCountdown(totalSeconds) {
+    const isNegative = totalSeconds < 0;
+    const abs = Math.abs(totalSeconds);
+    const h = Math.floor(abs / 3600);
+    const m = Math.floor((abs % 3600) / 60);
+    return `${isNegative ? '-' : ''}${h}:${String(m).padStart(2, '0')} hr`;
+}
+
+// ── ORDERS MAP ── خريطة توضح مكان كل أوردر (dropoff فقط)
+let ordersMapLeaflet = null;
+let ordersMapDropoffCluster = null;
+let ordersMapScope = 'unassigned'; // 'unassigned' | 'all'
+
+async function openOrdersMap() {
+    document.getElementById('orders-map-overlay').classList.add('open');
+    setOrdersMapStatus('⏳ جاري تحميل الأوردرات على الخريطة...');
+    await ensureLeafletLoaded();
+    if (!ordersMapLeaflet) {
+        ordersMapLeaflet = L.map('orders-map-canvas').setView([31.2001, 29.9187], 12); // الإسكندرية كنقطة بداية
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors', maxZoom: 19
+        }).addTo(ordersMapLeaflet);
+        ordersMapDropoffCluster = L.markerClusterGroup({ maxClusterRadius: 50, spiderfyOnMaxZoom: true });
+        ordersMapLeaflet.addLayer(ordersMapDropoffCluster);
+    }
+    setTimeout(() => ordersMapLeaflet.invalidateSize(), 50);
+    loadOrdersMapData(false);
+}
+
+function closeOrdersMap() {
+    document.getElementById('orders-map-overlay').classList.remove('open');
+}
+document.getElementById('orders-map-overlay').addEventListener('click', e => { if (e.target.id === 'orders-map-overlay') closeOrdersMap(); });
+
+function setOrdersMapScope(scope) {
+    if (scope === ordersMapScope) return;
+    ordersMapScope = scope;
+    document.getElementById('orders-map-scope-unassigned').classList.toggle('active', scope === 'unassigned');
+    document.getElementById('orders-map-scope-all').classList.toggle('active', scope === 'all');
+    loadOrdersMapData(false);
+}
+
+function ensureLeafletLoaded() {
+    return new Promise((resolve) => {
+        const needsCore = !window.L;
+        const needsCluster = !(window.L && window.L.markerClusterGroup);
+        if (!needsCore && !needsCluster) return resolve();
+
+        const loadCss = (href) => {
+            if (document.querySelector(`link[href="${href}"]`)) return;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            document.head.appendChild(link);
+        };
+        const loadScript = (src) => new Promise((res) => {
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = res;
+            document.head.appendChild(s);
+        });
+
+        (async () => {
+            loadCss('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+            if (needsCore) await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+            loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css');
+            loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css');
+            if (needsCluster) await loadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js');
+            resolve();
+        })();
+    });
+}
+
+function setOrdersMapStatus(text) {
+    const bar = document.getElementById('orders-map-status');
+    const txt = document.getElementById('orders-map-status-text');
+    if (!text) { bar.style.display = 'none'; return; }
+    txt.textContent = text;
+    bar.style.display = 'flex';
+}
+
+async function loadOrdersMapData(retry) {
+    setOrdersMapStatus(retry ? '⏳ جاري إعادة المحاولة...' : '⏳ جاري التحميل...');
+    try {
+        let params = new URLSearchParams();
+        if (retry) params.set('retry', '1');
+        if (ordersMapScope === 'all') params.set('scope', 'all');
+        let url = '/api/dispatcher_orders/map' + (params.toString() ? '?' + params.toString() : '');
+        let res = await fetch(url, { headers: { 'X-Admin-PW': PW } });
+        if (!res.ok) {
+            setOrdersMapStatus(`⚠️ السيرفر رجع خطأ (${res.status}). جرب تاني.`);
+            return;
+        }
+        let data = await res.json();
+        if (data.error) {
+            setOrdersMapStatus(`⚠️ ${data.error}`);
+            return;
+        }
+        renderOrdersMapMarkers(data.points || []);
+    } catch (e) {
+        console.error("Error loading orders map:", e);
+        setOrdersMapStatus('⚠️ فشل الاتصال بالسيرفر. جرب تاني.');
+    }
+}
+
+function renderOrdersMapMarkers(points) {
+    if (!ordersMapLeaflet) return;
+    ordersMapDropoffCluster.clearLayers();
+    let bounds = [];
+    let failedCount = 0;
+
+    if (!points.length) {
+        setOrdersMapStatus(ordersMapScope === 'all'
+            ? '📭 مفيش أي أوردرات حاليًا لعرضها على الخريطة.'
+            : '📭 مفيش أوردرات لسه من غير سائق حاليًا. جرب "كل الأوردرات".');
+        return;
+    }
+
+    points.forEach(p => {
+        const isAssigned = !!p.assigned;
+        const detailsLines = [
+            p.items ? `📦 ${esc(p.items)}` : '',
+            p.distance ? `📏 ${esc(p.distance)}` : '',
+        ].filter(Boolean).join('<br>');
+
+        if (p.dropoff_lat != null && p.dropoff_lng != null) {
+            let marker = L.circleMarker([p.dropoff_lat, p.dropoff_lng], {
+                radius: isAssigned ? 7 : 9,
+                color: isAssigned ? '#475569' : '#047857',
+                fillColor: isAssigned ? '#cbd5e1' : '#10b981',
+                fillOpacity: isAssigned ? 0.65 : 0.85,
+                weight: 2
+            });
+            marker.bindPopup(`
+                <b>أوردر #${esc(p.id)}</b><br>
+                ⬆️ استلام: ${esc(p.pickup || '—')}<br>
+                ⬇️ تسليم: ${esc(p.dropoff || '—')}
+                ${detailsLines ? '<br>' + detailsLines : ''}
+                ${isAssigned ? `<br>✅ معيّن لـ: ${esc(p.assigned_to || '—')}` : ''}
+            `);
+            ordersMapDropoffCluster.addLayer(marker);
+            bounds.push([p.dropoff_lat, p.dropoff_lng]);
+        } else {
+            failedCount++;
+        }
+    });
+
+    if (bounds.length) {
+        ordersMapLeaflet.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+    }
+
+    if (!bounds.length) {
+        setOrdersMapStatus(`⚠️ مقدرش نحدد موقع أي عنوان من ${points.length} أوردر. العناوين ممكن تكون مش واضحة كفاية لـ Nominatim.`);
+    } else if (failedCount > 0) {
+        setOrdersMapStatus(`⚠️ ${failedCount} من ${points.length} عنوان تسليم مقدرش يتحدد مكانه.`);
+    } else {
+        setOrdersMapStatus(null);
+    }
+}
+
+// 🔴 Load Dispatcher Orders Data
+let dispatcherOrdersCache = [];
+async function loadDispatcherOrders() {
+    try {
+        let res = await fetch('/api/dispatcher_orders', { headers: { 'X-Admin-PW': PW } });
+        dispatcherOrdersCache = await res.json();
+        renderDispatcherOrders();
+    } catch (e) { console.error("Error loading dispatcher orders:", e); }
+}
+
+function renderDispatcherOrders() {
+    let orders = dispatcherOrdersCache;
+    txt('c-d', orders.filter(o => !(o.picked_up_by && o.picked_up_by.trim())).length);
+
+    let h = orders.length ? '' : '<div class="empty">No Orders Yet</div>';
+    orders.forEach((o, i) => {
+        // ضبط العداد التنازلي أول مرة نشوف الأوردر ده
+        if (dispatcherTimers[o.id] === undefined) {
+            const secs = parseHrTimeToSeconds(o.time);
+            dispatcherTimers[o.id] = secs !== null ? (Date.now() + secs * 1000) : null;
+        }
+        let remSecs = dispatcherTimers[o.id] !== null ? Math.round((dispatcherTimers[o.id] - Date.now()) / 1000) : null;
+        let timeDisplay = remSecs !== null ? formatCountdown(remSecs) : (o.time || '—');
+        let isOverdue = remSecs !== null && remSecs < 0;
+        let isPickedUp = !!(o.picked_up_by && o.picked_up_by.trim());
+
+        h += `
+        <div class="order-row ${isPickedUp ? 'picked-up' : ''} ${isOverdue ? 'order-overdue' : ''}"
+             data-id="${o.id}" draggable="${!isPickedUp}" style="animation-delay: ${i*0.03}s">
+            <div class="oi-row"><span class="oi-time" data-order-time="${o.id}">⏱️ ${esc(timeDisplay)}</span> <span style="margin-right:auto; font-size:11px; color:var(--text-muted);">${esc(o.distance||'')} ${o.weight ? '· '+esc(o.weight) : ''}</span></div>
+            <div class="oi-row">⬆️ <span title="${esc(o.pickup||'')}">${esc(o.pickup || '—')}</span></div>
+            <div class="oi-row">⬇️ <span title="${esc(o.dropoff||'')}">${esc(o.dropoff || '—')}</span></div>
+            ${o.items ? `<div class="oi-row" style="font-size:11px; color:var(--text-muted);">📦 ${esc(o.items)}</div>` : ''}
+            ${isPickedUp ? `<div class="o-assigned-badge">✅ Assigned to ${esc(o.picked_up_by)}</div>` : ''}
+        </div>`;
+    });
+    diff('dispatcher-list', h);
+    if (orders.length) initOrderDragHandlers();
+}
+
+// تحديث خفيف كل ثانية: بيغير نص الوقت والـ overdue class بس، من غير ما يعيد بناء الـ DOM كله
+// (كده الـ drag/drop مبيتقطعش/يتعمل من الأول كل ثانية)
+function tickDispatcherTimers() {
+    if (!dispatcherOrdersCache.length) return;
+    dispatcherOrdersCache.forEach(o => {
+        const target = dispatcherTimers[o.id];
+        const el = document.querySelector(`.oi-row .oi-time[data-order-time="${o.id}"]`);
+        if (!el || target === null || target === undefined) return;
+        const remSecs = Math.round((target - Date.now()) / 1000);
+        el.textContent = `⏱️ ${formatCountdown(remSecs)}`;
+        const row = el.closest('.order-row');
+        if (row) row.classList.toggle('order-overdue', remSecs < 0);
+    });
+}
+
+async function clearDispatcherOrders() {
+    show('Clear All Orders', 'Are you sure you want to clear ALL new orders?', async () => {
+        await fetch('/api/dispatcher_orders/clear', { method: 'POST', headers: H });
+        closeModal();
+        loadDispatcherOrders();
+    });
+}
+
+// ── DRAG & DROP: Order → Driver ──
+function initOrderDragHandlers() {
+    document.querySelectorAll('#dispatcher-list .order-row[draggable="true"]').forEach(row => {
+        row.addEventListener('dragstart', onOrderDragStart);
+        row.addEventListener('dragend', onOrderDragEnd);
+    });
+}
+function onOrderDragStart(e) {
+    e.dataTransfer.setData('text/order-id', e.currentTarget.dataset.id);
+    e.currentTarget.classList.add('dragging');
+    document.getElementById('dispatcher-list')?.classList.add('drag-active');
+}
+function onOrderDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    document.getElementById('dispatcher-list')?.classList.remove('drag-active');
+}
+function initDriverDropTargets() {
+    document.querySelectorAll('#waiting-list .driver-card').forEach(card => {
+        card.addEventListener('dragover', (e) => { e.preventDefault(); card.classList.add('drop-target'); });
+        card.addEventListener('dragleave', () => card.classList.remove('drop-target'));
+        card.addEventListener('drop', onDriverDrop);
+    });
+}
+async function onDriverDrop(e) {
+    e.preventDefault();
+    const card = e.currentTarget;
+    card.classList.remove('drop-target');
+    const orderId = e.dataTransfer.getData('text/order-id');
+    const driverId = card.dataset.id;
+    if (!orderId || !driverId) return;
+
+    const driverRow = allDriversCache.find(d => String(d.id) === String(driverId));
+    if (!driverRow) return;
+
+    try {
+        let res = await fetch('/api/dispatcher_orders/assign', {
+            method: 'POST', headers: H,
+            body: JSON.stringify({ order_id: Number(orderId), driver_name: driverRow.name })
+        });
+        let data = await res.json();
+        if (data.ok) {
+            card.classList.add('assign-flash');
+            notifySuccess(`تم تعيين الأوردر لـ ${driverRow.name}`);
+            loadDispatcherOrders(); load();
+        } else {
+            notifyError(data.error || 'فشل تعيين الأوردر');
+        }
+    } catch (err) { notifyError('حصل خطأ أثناء تعيين الأوردر'); console.error(err); }
+}
+
+
+let lastBreak=new Set();
+let allDriversCache = []; // 🔴 نسخة محدّثة من كل السواقين (waiting/out/break) يستخدمها السيرش بدون fetch إضافي
+async function load(){
+  beginGlobalLoad();
+  try{
+    loadDashboardStats(); 
+    loadDispatcherOrders(); // استدعاء أوردرات الديسباتشر مع كل دورة
+
+    // جيب الأوردرات المعيّنة عشان نعرضها على كروت الـ out
+    let driverOrderMap = {};
+    try {
+      let ordersRes = await fetch('/api/dispatcher_orders', {headers:{'X-Admin-PW':PW}});
+      let ordersData = await ordersRes.json();
+      ordersData.forEach(o => {
+        if (o.picked_up_by && o.picked_up_by.trim()) {
+          driverOrderMap[o.picked_up_by.trim()] = o;
+        }
+      });
+    } catch(e) {}
+    
+    let data=await(await fetch('/api/list',{headers:{'X-Admin-PW':PW}})).json();
+    allDriversCache = data;
+    let W=data.filter(x=>x.status==='waiting'); let O=data.filter(x=>x.status==='out'); let B=data.filter(x=>x.status==='break');
+    ['w','o','b'].forEach((k,i)=>{let n=[W,O,B][i].length;txt('c-'+k,n);});
+    
+    if(!isDrag){
+      let h=W.length?'':'<div class="empty">No Drivers</div>';
+      W.forEach((x,i)=>{
+        let mb = x.misses > 0 ? `<span class="miss-badge">M: ${x.misses}</span>` : ''; let rb = x.returns > 0 ? `<span class="ret-badge">R: ${x.returns}</span>` : '';
+        h+=`<div class="driver-card ${i===0?'first':''} ${flaggedDrivers.has(x.id)?'flagged':''}" data-id="${x.id}" data-driver-name="${esc(x.name)}" style="animation-delay: ${i*0.03}s">
+          <div class="card-top">
+            <span class="drag-handle">⠿</span>
+            <div class="d-pos">${i===0?'★':'#'+(i+1)}</div>
+            <div class="d-info">
+              <div class="d-name">${esc(x.name)}${mb}${rb}</div>
+              <div class="d-time">⏰ ${x.created}</div>
+            </div>
+            <div class="d-icons"><button class="btn-notify" title="إشعار الطيار" onclick="notifyDriver('${esc(x.name)}',this)">🔔</button><button class="btn-flag ${flaggedDrivers.has(x.id)?'':''}` + `" title="Flag driver" onclick="toggleFlag(${x.id},this)">⚑</button><button class="btn-rename" title="Edit" onclick="renameDriver(${x.id},'${esc(x.name)}')">✎</button></div>
+          </div>
+          <div class="card-btns">
+            <button class="btn btn-break" onclick="st(${x.id},'break')">Break</button>
+            <button class="btn" onclick="st(${x.id},'out')">Out</button>
+            <button class="btn" onclick="confirmDelete(${x.id},'${esc(x.name)}')">✕</button>
+          </div>
+        </div>`;
+      });
+      diff('waiting-list',h); initSortable(); initDriverDropTargets();
+    }
+
+    let oh=O.length?'':'<div class="empty">No Drivers Out</div>';
+    O.forEach((x,i)=>{
+      let mb = x.misses > 0 ? `<span class="miss-badge">M: ${x.misses}</span>` : ''; let rb = x.returns > 0 ? `<span class="ret-badge">R: ${x.returns}</span>` : '';
+      const ord = driverOrderMap[x.name];
+      const orderInfoHtml = ord ? `
+        <div class="out-order-info">
+          <div class="oi-row"><span class="oi-time">⏱️ ${esc(ord.time||'—')}</span></div>
+          <div class="oi-row">⬆️ <span title="${esc(ord.pickup)}">${esc(ord.pickup||'—')}</span></div>
+          <div class="oi-row">⬇️ <span title="${esc(ord.dropoff)}">${esc(ord.dropoff||'—')}</span></div>
+        </div>` : '';
+      oh+=`<div class="driver-card out-card" data-id="${x.id}" style="animation-delay: ${i*0.03}s">
+        <div class="card-top">
+          <div class="d-info">
+            <div class="d-name">${esc(x.name)}${mb}${rb}</div>
+            <div class="d-time">⏱️ ${x.out_time||'—'} <span style="margin:0 4px">•</span> <span class="sw" data-since="${x.out_time||''}">00:00</span></div>
+          </div>
+          <div class="d-icons"><button class="btn-rename" title="Edit" onclick="renameDriver(${x.id},'${esc(x.name)}')">✎</button></div>
+        </div>
+        ${orderInfoHtml}
+        <div class="card-btns">
+          <button class="btn btn-miss" onclick="promptMiss(${x.id},'${esc(x.name)}')">Miss</button>
+          <button class="btn btn-ret" onclick="promptReturn(${x.id},'${esc(x.name)}')">Ret</button>
+          <button class="btn btn-break" onclick="st(${x.id},'break')">Break</button>
+          <button class="btn btn-done" onclick="st(${x.id},'done')">Done</button>
+          <button class="btn" onclick="confirmDelete(${x.id},'${esc(x.name)}')">✕</button>
+        </div>
+      </div>`;
+    });
+    diff('out-list',oh);
+
+    let curB=new Set(B.map(x=>x.id)); for(let id of lastBreak)if(!curB.has(id))killTimer(id); lastBreak=curB;
+    let bKey=B.map(x=>x.id+'|'+x.break_paused+'|'+x.break_paused_accum+'|'+x.break_pause_started).join(','); let bEl=document.getElementById('break-list');
+    if(!B.length){ diff('break-list','<div class="empty">No Breaks</div>'); } 
+    else if(bEl._bKey!==bKey){
+      bEl._bKey=bKey; let bh='';
+      B.forEach((x,i)=>{
+        let t=getTimer(x.id,x.break_start,x.break_paused,x.break_paused_accum,x.break_pause_started);
+        if(x.break_paused && !t.paused){ t.paused=true; if(t.iv){clearInterval(t.iv);t.iv=null;} }
+        if(!x.break_paused && t.paused){ t.paused=false; startTick(x.id); }
+        if(!x.break_paused && !t.iv) startTick(x.id); let r=t.rem;
+        let hh=String(Math.floor(r/3600)).padStart(2,'0'),mm=String(Math.floor((r%3600)/60)).padStart(2,'0'),ss=String(r%60).padStart(2,'0');
+        bh+=`<div class="break-card" data-id="${x.id}" style="animation-delay: ${i*0.03}s">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div class="brk-name" style="flex:1">${esc(x.name)}</div>
+            <div class="d-icons"><button class="btn-rename" title="Edit" onclick="renameDriver(${x.id},'${esc(x.name)}')">✎</button></div>
+          </div>
+          <div class="brk-timer${r<300?' urgent':''}" id="bd-${x.id}">${hh}:${mm}:${ss}</div>
+          <div class="brk-actions">
+            <button class="btn" id="bs-${x.id}" onclick="toggleBreak(${x.id},${x.break_paused})">${x.break_paused?'Resume':'Pause'}</button>
+            <button class="btn" onclick="st(${x.id},'break_out')">Return</button>
+            <button class="btn" onclick="confirmDelete(${x.id},'${esc(x.name)}')">✕</button>
+          </div>
+        </div>`;
+      });
+      diff('break-list',bh);
+    }
+    document.querySelectorAll('.sw[data-since]').forEach(el=>{
+      let since=parseT(el.dataset.since);if(!since)return;
+      let e=Math.max(0,Math.floor((Date.now()-since.getTime())/1000));
+      el.textContent=`${String(Math.floor(e/60)).padStart(2,'0')}:${String(e%60).padStart(2,'0')}`;
+    });
+  }catch(e){console.error(e);}
+  finally{ endGlobalLoad(); }
+}
+
+// ── DRIVER SMART SEARCH ──
+let dsrActiveIndex = -1;
+let dsrCurrentMatches = [];
+
+function statusLabel(status) {
+  if (status === 'waiting') return 'Waiting';
+  if (status === 'out') return 'Out';
+  if (status === 'break') return 'Break';
+  return status;
+}
+
+function onDriverSearchInput() {
+  const input = document.getElementById('driver-search');
+  const box = document.getElementById('driver-search-results');
+  const q = input.value.trim().toLowerCase();
+  dsrActiveIndex = -1;
+
+  if (!q) { box.classList.remove('show'); box.innerHTML = ''; dsrCurrentMatches = []; return; }
+
+  // بس السواقين في waiting/out/break (مفيش done لأنهم مش معروضين في أي عمود)
+  const pool = allDriversCache.filter(x => x.status === 'waiting' || x.status === 'out' || x.status === 'break');
+  dsrCurrentMatches = pool.filter(x => x.name.toLowerCase().includes(q)).slice(0, 8);
+
+  if (!dsrCurrentMatches.length) {
+    box.innerHTML = '<div class="dsr-empty">No matching drivers</div>';
+    box.classList.add('show');
+    return;
+  }
+
+  box.innerHTML = dsrCurrentMatches.map((x, i) =>
+    `<div class="dsr-item" data-idx="${i}" onclick="goToDriver(${x.id},'${x.status}')">
+      <span class="dsr-name">${esc(x.name)}</span>
+      <span class="dsr-status">${statusLabel(x.status)}</span>
+    </div>`
+  ).join('');
+  box.classList.add('show');
+}
+
+// التنقل بالكيبورد (أسهم + Enter) جوه نتائج السيرش
+document.getElementById('driver-search').addEventListener('keydown', function(e) {
+  const box = document.getElementById('driver-search-results');
+  const items = box.querySelectorAll('.dsr-item');
+  if (!items.length) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    dsrActiveIndex = Math.min(dsrActiveIndex + 1, items.length - 1);
+    updateDsrActiveHighlight(items);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    dsrActiveIndex = Math.max(dsrActiveIndex - 1, 0);
+    updateDsrActiveHighlight(items);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (dsrActiveIndex >= 0 && dsrCurrentMatches[dsrActiveIndex]) {
+      const x = dsrCurrentMatches[dsrActiveIndex];
+      goToDriver(x.id, x.status);
+    } else if (dsrCurrentMatches.length === 1) {
+      goToDriver(dsrCurrentMatches[0].id, dsrCurrentMatches[0].status);
+    }
+  } else if (e.key === 'Escape') {
+    closeDriverSearch();
+  }
+});
+
+function updateDsrActiveHighlight(items) {
+  items.forEach((el, i) => el.classList.toggle('active-hover', i === dsrActiveIndex));
+}
+
+function closeDriverSearch() {
+  document.getElementById('driver-search-results').classList.remove('show');
+}
+
+// لما تدوس على نتيجة، نروح للعمود الصحيح (في الموبايل) ونعمل سكرول + هايلايت للكارت
+function goToDriver(id, status) {
+  closeDriverSearch();
+  document.getElementById('driver-search').value = '';
+
+  // لو موبايل (التابز ظاهرة)، بدّل للعمود الصحيح أولاً
+  const tabKey = status === 'waiting' ? 'waiting' : status === 'out' ? 'out' : status === 'break' ? 'break' : null;
+  if (tabKey && document.querySelector('.mobile-tabs') && getComputedStyle(document.querySelector('.mobile-tabs')).display !== 'none') {
+    switchTab(tabKey);
+  }
+
+  // الانتظار لفريم واحد لحد ما العمود يتفتح/يترسم، بعدين نلاقي الكارت ونعمل سكرول + هايلايت
+  setTimeout(() => {
+    const card = document.querySelector(`[data-id="${id}"]`);
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('search-highlight');
+    // إعادة تشغيل الأنيميشن لو كانت شغالة قبل كده
+    void card.offsetWidth;
+    card.classList.add('search-highlight');
+    setTimeout(() => card.classList.remove('search-highlight'), 1800);
+  }, 60);
+}
+
+// إغلاق نتائج السيرش لو دوس حد بره الصندوق
+document.addEventListener('click', function(e) {
+  const wrap = document.querySelector('.driver-search-wrap');
+  if (wrap && !wrap.contains(e.target)) closeDriverSearch();
+});
+
+setInterval(load, 1500); load();
+loadShiftStatus();
+
+// عداد الأوردرات التنازلي: نحدث نص الوقت بس كل ثانية بدون إعادة بناء الـ DOM
+setInterval(tickDispatcherTimers, 1000);
+
+// فحص القرب الجغرافي بين الأوردرات — بيتحدث كل 20 ثانية بس (مش كل ريفريش) عشان منكترش طلبات Nominatim
+
+
+</script>
+
+<!-- ✏️ Text Editor Modal -->
+<div class="modal-ov" id="text-editor-modal" style="z-index:9999;">
+  <div class="modal" style="max-width:480px;padding:0;overflow:hidden;background:var(--card);max-height:90vh;display:flex;flex-direction:column;">
+    <div class="amodal-header" style="padding:16px 20px;border-bottom:1px solid var(--border);background:#1e1b4b;flex-shrink:0;display:flex;align-items:center;gap:10px;">
+      <h3 style="margin:0;font-size:17px;color:#a78bfa;flex:1;">✏️ Text Editor</h3>
+      <div style="display:flex;gap:6px;">
+        <button id="te-tab-join" onclick="teLoadTab('join')" style="padding:6px 14px;border-radius:6px;border:none;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-size:13px;">Join</button>
+        <button id="te-tab-admin" onclick="teLoadTab('admin')" style="padding:6px 14px;border-radius:6px;border:none;background:#334155;color:#94a3b8;font-weight:700;cursor:pointer;font-size:13px;">Admin</button>
+      </div>
+    </div>
+
+    <div style="padding:10px 14px;background:#0f172a;flex-shrink:0;">
+      <input id="te-search" type="text" placeholder="🔍 ابحث عن نص..." oninput="teFilter()" dir="auto"
+        style="width:100%;padding:8px 12px;background:#1e293b;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;">
+    </div>
+
+    <div id="te-list" style="overflow-y:auto;flex:1;padding:10px 14px;background:#0f172a;display:flex;flex-direction:column;gap:7px;">
+      <div style="text-align:center;color:#475569;padding:30px;">⏳ اختار Join أو Admin...</div>
+    </div>
+
+    <div style="padding:12px 14px;background:#0f172a;border-top:1px solid #1e293b;display:flex;gap:8px;flex-shrink:0;align-items:center;">
+      <button onclick="teReset()" style="padding:9px 16px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:13px;">↩️ تراجع</button>
+      <span id="te-status" style="flex:1;text-align:center;font-size:12px;color:#64748b;"></span>
+      <span id="te-count-badge" style="display:none;background:#f59e0b;color:#000;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:700;"></span>
+      <button id="te-save-btn" onclick="teSave()" disabled style="padding:9px 18px;border-radius:8px;border:none;background:#374151;color:#6b7280;font-weight:700;cursor:not-allowed;font-size:13px;">💾 حفظ</button>
+      <button onclick="closeTextEditorModal()" style="padding:9px 14px;border-radius:8px;border:1px solid #334155;background:#1e293b;color:#94a3b8;font-weight:700;cursor:pointer;font-size:13px;">✕</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Text Editor Logic ──
+let teTab = 'join';
+let teItems = [];
+
+function openTextEditor()      { teOpenModal('join'); }
+function openTextEditorAdmin() { teOpenModal('admin'); }
+
+function teOpenModal(tab) {
+  document.getElementById('text-editor-modal').classList.add('show');
+  teLoadTab(tab);
+}
+function closeTextEditorModal() {
+  document.getElementById('text-editor-modal').classList.remove('show');
+}
+document.getElementById('text-editor-modal').addEventListener('click', e => {
+  if (e.target.id === 'text-editor-modal') closeTextEditorModal();
+});
+
+async function teLoadTab(tab) {
+  teTab = tab;
+  // Update tab buttons
+  document.getElementById('te-tab-join').style.background  = tab==='join'  ? '#7c3aed' : '#334155';
+  document.getElementById('te-tab-join').style.color       = tab==='join'  ? '#fff'    : '#94a3b8';
+  document.getElementById('te-tab-admin').style.background = tab==='admin' ? '#7c3aed' : '#334155';
+  document.getElementById('te-tab-admin').style.color      = tab==='admin' ? '#fff'    : '#94a3b8';
+
+  document.getElementById('te-list').innerHTML = '<div style="text-align:center;color:#475569;padding:30px;">⏳ جاري التحميل...</div>';
+  document.getElementById('te-search').value = '';
+
+  try {
+    const res = await fetch(`/api/text-editor/get?file=${tab}&pw=${PW}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    teItems = teExtract(data.html).map(t => ({...t, current: t.original}));
+    teRender(teItems);
+  } catch(e) {
+    document.getElementById('te-list').innerHTML = `<div style="color:#ef4444;text-align:center;padding:20px;">❌ ${e.message}</div>`;
+  }
+}
+
+function teExtract(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const results = []; const seen = new Set(); let idx = 0;
+  // title & apple-title
+  const title = doc.querySelector('title');
+  if (title) { const t = title.textContent.trim(); if (t && !seen.has(t)) { seen.add(t); results.push({id:idx++, original:t, label:'📄 Page Title'}); } }
+  const at = doc.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (at) { const t = at.getAttribute('content'); if (t && !seen.has(t)) { seen.add(t); results.push({id:idx++, original:t, label:'📱 PWA App Name'}); } }
+  // text nodes
+  const walker = document.createTreeWalker(doc.body||doc.documentElement, NodeFilter.SHOW_TEXT, null);
+  let node;
+  while ((node = walker.nextNode())) {
+    const text = node.textContent.trim();
+    if (!text || text.length < 2) continue;
+    if (/^[\d\s\W]+$/.test(text) && text.length < 4) continue;
+    const parent = node.parentElement;
+    if (!parent) continue;
+    const tag = parent.tagName.toLowerCase();
+    if (['script','style','head'].includes(tag)) continue;
+    if (/[{}\[\]();=>]/.test(text) && text.length > 10) continue;
+    if (seen.has(text)) continue;
+    seen.add(text);
+    let label = parent.id ? `#${parent.id}` : (parent.className && typeof parent.className==='string' ? `.${parent.className.trim().split(/\s+/)[0]}` : `<${tag}>`);
+    results.push({id:idx++, original:text, label, current:text});
+  }
+  return results;
+}
+
+function teRender(list) {
+  const container = document.getElementById('te-list');
+  if (!list.length) { container.innerHTML = '<div style="text-align:center;color:#475569;padding:20px;">لا توجد نتائج</div>'; return; }
+  container.innerHTML = list.map(item => `
+    <div style="background:${item.current!==item.original?'#1a1500':'#1e293b'};border:1px solid ${item.current!==item.original?'#f59e0b':'#334155'};border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;" id="te-item-${item.id}">
+      <span style="font-size:11px;color:#64748b;">${escHtmlTE(item.label)}</span>
+      <input type="text" value="${escAttrTE(item.current)}" data-original="${escAttrTE(item.original)}" data-id="${item.id}"
+        oninput="teOnChange(this)" dir="auto"
+        style="background:transparent;border:none;border-bottom:1px dashed #334155;color:${item.current!==item.original?'#fbbf24':'#e2e8f0'};font-size:14px;padding:3px 0;outline:none;width:100%;">
+    </div>
+  `).join('');
+  teUpdateCount();
+}
+
+function escHtmlTE(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escAttrTE(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
+function teOnChange(input) {
+  const id = +input.dataset.id;
+  const original = input.dataset.original;
+  const val = input.value;
+  teItems[id].current = val;
+  const changed = val !== original;
+  input.style.color = changed ? '#fbbf24' : '#e2e8f0';
+  const wrap = input.closest('div');
+  wrap.style.background = changed ? '#1a1500' : '#1e293b';
+  wrap.style.borderColor = changed ? '#f59e0b' : '#334155';
+  teUpdateCount();
+}
+
+function teFilter() {
+  const q = document.getElementById('te-search').value.trim().toLowerCase();
+  const filtered = q ? teItems.filter(i => i.original.toLowerCase().includes(q) || i.label.toLowerCase().includes(q)) : teItems;
+  teRender(filtered);
+}
+
+function teUpdateCount() {
+  const count = teItems.filter(i => i.current !== i.original).length;
+  const badge = document.getElementById('te-count-badge');
+  const btn   = document.getElementById('te-save-btn');
+  if (count > 0) {
+    badge.textContent = `${count} تعديل`; badge.style.display='';
+    btn.disabled=false; btn.style.background='#16a34a'; btn.style.color='#fff'; btn.style.cursor='pointer';
+  } else {
+    badge.style.display='none';
+    btn.disabled=true; btn.style.background='#374151'; btn.style.color='#6b7280'; btn.style.cursor='not-allowed';
+  }
+}
+
+function teReset() {
+  teItems.forEach(i => i.current = i.original);
+  teRender(teItems);
+  teSetStatus('', '');
+}
+
+async function teSave() {
+  const replacements = teItems.filter(i=>i.current!==i.original && i.current.trim()).map(i=>({old:i.original, new:i.current}));
+  if (!replacements.length) return;
+  const btn = document.getElementById('te-save-btn');
+  btn.textContent='⏳...'; btn.disabled=true;
+  try {
+    const res = await fetch(`/api/text-editor/save?pw=${PW}`, {
+      method:'POST', headers:{'Content-Type':'application/json','X-Admin-PW':PW},
+      body: JSON.stringify({file: teTab, replacements})
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    teSetStatus(`✅ تم حفظ ${data.changed} تعديل!`, '#22c55e');
+    await teLoadTab(teTab);
+  } catch(e) {
+    teSetStatus(`❌ ${e.message}`, '#ef4444');
+    btn.disabled=false;
+  }
+  btn.textContent='💾 حفظ';
+}
+
+function teSetStatus(msg, color) {
+  const el = document.getElementById('te-status');
+  el.textContent = msg; el.style.color = color || '#64748b';
+  if (msg) setTimeout(()=>{ el.textContent=''; }, 4000);
+}
+</script>
+</body>
+</html>

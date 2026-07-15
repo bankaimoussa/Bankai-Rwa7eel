@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#080c12">
+<title>Rwa7el — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    background: #080c12;
+    color: #e2eaf5;
+    font-family: 'Barlow', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0,229,255,.07), transparent);
+    pointer-events: none;
+  }
+  .card {
+    width: 90%;
+    max-width: 360px;
+    background: #111b2a;
+    border: 1px solid #1c2d42;
+    border-radius: 24px;
+    padding: 36px 28px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #00e5ff;
+    text-shadow: 0 0 24px rgba(0,229,255,.4);
+    margin-bottom: 4px;
+  }
+  .logo span { color: #e2eaf5; }
+  .sub {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: #5a7a9a;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+  .label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #5a7a9a;
+    text-transform: uppercase;
+    text-align: left;
+    display: block;
+    margin-bottom: 8px;
+  }
+  input[type="password"] {
+    width: 100%;
+    padding: 15px 18px;
+    background: #0e1520;
+    border: 1.5px solid #1c2d42;
+    border-radius: 14px;
+    color: #e2eaf5;
+    font-family: 'Barlow', sans-serif;
+    font-size: 18px;
+    letter-spacing: 4px;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color .2s;
+    -webkit-appearance: none;
+    text-align: center;
+  }
+  input[type="password"]:focus { border-color: #00e5ff; }
+  input[type="password"].error { border-color: #ff3b5c; animation: shake .3s ease; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25%      { transform: translateX(-6px); }
+    75%      { transform: translateX(6px); }
+  }
+  .btn-login {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #00e5ff, #00b4d8);
+    border: 0;
+    border-radius: 14px;
+    color: #000;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 6px 24px rgba(0,229,255,.2);
+    transition: all .15s;
+    -webkit-appearance: none;
+  }
+  .btn-login:active { transform: scale(.97); }
+  .err-msg {
+    margin-top: 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #ff3b5c;
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .err-msg.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">⚡ Rwa7el<span> Bankai</span></div>
+  <div class="sub">Admin Access</div>
+  <label class="label" for="pw">Password</label>
+  <input type="password" id="pw" placeholder="••••••" autofocus>
+  <button class="btn-login" onclick="login()">Enter</button>
+  <div class="err-msg" id="err">Wrong password</div>
+</div>
+<script>
+  document.getElementById('pw').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+  function login() {
+    let pw = document.getElementById('pw').value.trim();
+    if (!pw) return;
+    window.location.href = '/?pw=' + encodeURIComponent(pw);
+  }
+  // Show error if redirected back with ?err=1
+  if (location.search.includes('err=1')) {
+    document.getElementById('err').classList.add('show');
+    let inp = document.getElementById('pw');
+    inp.classList.add('error');
+    setTimeout(() => inp.classList.remove('error'), 400);
+  }
+</script>
+</body>
+</html>

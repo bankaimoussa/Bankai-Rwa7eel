@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAWAHEL — تقييم المندوبين</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #080a0f;
+    --bg2:       #0f1118;
+    --bg3:       #161922;
+    --bg4:       #1d2130;
+    --border:    rgba(255,255,255,0.08);
+    --border2:   rgba(255,255,255,0.14);
+    --text:      #f4f6ff;
+    --text2:     #a8aec8;
+    --text3:     #636882;
+    --accent:    #5b8aff;
+    --accent-bg: rgba(91,138,255,0.12);
+    --green:     #22e882;
+    --green-bg:  rgba(34,232,130,0.11);
+    --yellow:    #fbb040;
+    --yellow-bg: rgba(251,176,64,0.11);
+    --red:       #f24d63;
+    --red-bg:    rgba(242,77,99,0.11);
+    --radius:    10px;
+    --radius-lg: 16px;
+    --font: 'IBM Plex Sans Arabic', sans-serif;
+  }
+
+  html { font-family: var(--font); font-size: 15px; -webkit-font-smoothing: antialiased; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── PAGE LOAD ANIMATION ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(24px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-24px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes popIn {
+    0%   { opacity: 0; transform: scale(0.88); }
+    70%  { transform: scale(1.03); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes ringDraw {
+    from { stroke-dashoffset: 289; }
+  }
+  @keyframes barGrow {
+    from { width: 0 !important; }
+  }
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(79,127,255,0.4); }
+    50%       { box-shadow: 0 0 0 6px rgba(79,127,255,0); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  @keyframes dotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.6; transform: scale(0.7); }
+  }
+  @keyframes rowSlideIn {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes badgePop {
+    0%   { transform: scale(0.5); opacity: 0; }
+    70%  { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes cardReveal {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes statsCount {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    animation: fadeIn 0.4s ease both;
+  }
+  .logo {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: dotPulse 2.4s ease-in-out infinite;
+  }
+  .logo-dot.live { background: var(--green); }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .topbar-date {
+    font-size: 13px;
+    color: var(--text3);
+    font-weight: 400;
+  }
+  .btn-export {
+    background: var(--accent-bg);
+    border: 1px solid rgba(79,127,255,0.25);
+    color: var(--accent);
+    padding: 7px 18px;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.18s, transform 0.12s;
+  }
+  .btn-export:hover { background: rgba(79,127,255,0.18); }
+  .btn-export:active { transform: scale(0.97); }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 58px);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 310px;
+    min-width: 310px;
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideInRight 0.45s cubic-bezier(.22,1,.36,1) 0.05s both;
+  }
+  .sidebar-head {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-head h2 {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .search-wrap { position: relative; }
+  .search-wrap svg {
+    position: absolute;
+    top: 50%; right: 11px;
+    transform: translateY(-50%);
+    color: var(--text3);
+    pointer-events: none;
+    transition: color 0.2s;
+  }
+  .search-wrap:focus-within svg { color: var(--accent); }
+  .search-wrap input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 9px 36px 9px 12px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 400;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-wrap input::placeholder { color: var(--text3); font-size: 13px; }
+  .search-wrap input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,127,255,0.12);
+  }
+
+  .filter-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .ftab {
+    flex: 1;
+    padding: 6px 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--text2);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(.22,1,.36,1);
+    text-align: center;
+  }
+  .ftab:hover { background: var(--bg3); color: var(--text); transform: translateY(-1px); }
+  .ftab:active { transform: translateY(0); }
+  .ftab.active { background: var(--accent-bg); border-color: rgba(79,127,255,0.3); color: var(--accent); }
+  .ftab.f-green.active { background: var(--green-bg); border-color: rgba(31,217,122,0.3); color: var(--green); }
+  .ftab.f-yellow.active { background: var(--yellow-bg); border-color: rgba(245,166,35,0.3); color: var(--yellow); }
+  .ftab.f-red.active { background: var(--red-bg); border-color: rgba(240,68,90,0.3); color: var(--red); }
+
+  .drivers-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 6px;
+  }
+  .drivers-list::-webkit-scrollbar { width: 3px; }
+  .drivers-list::-webkit-scrollbar-track { background: transparent; }
+  .drivers-list::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+  .driver-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+    margin-bottom: 2px;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    animation: rowSlideIn 0.3s ease both;
+  }
+  .driver-item:hover { background: var(--bg3); transform: translateX(-2px); }
+  .driver-item:active { transform: scale(0.99); }
+  .driver-item.active {
+    background: var(--bg3);
+    border-color: var(--border2);
+    transform: translateX(-2px);
+  }
+
+  .d-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .driver-item:hover .d-avatar { transform: scale(1.08); }
+
+  .d-info { flex: 1; min-width: 0; }
+  .d-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 4px;
+    letter-spacing: 0.01em;
+  }
+  .d-mini { display: flex; align-items: center; gap: 8px; }
+  .d-mini-bar-wrap {
+    flex: 1; height: 3px; background: var(--bg4); border-radius: 99px; overflow: hidden;
+  }
+  .d-mini-bar {
+    height: 100%; border-radius: 99px;
+    transition: width 0.5s cubic-bezier(.22,1,.36,1);
+  }
+  .d-pct { font-size: 11px; font-weight: 700; min-width: 32px; text-align: left; }
+  .d-badge { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .empty-state {
+    text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 14px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  /* ── CONTENT AREA ── */
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .content::-webkit-scrollbar { width: 3px; }
+  .content::-webkit-scrollbar-track { background: transparent; }
+  .content::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.5s ease 0.1s both;
+  }
+  .stat-box {
+    background: var(--bg);
+    padding: 1.25rem 1.5rem;
+    display: flex; flex-direction: column; gap: 4px;
+    transition: background 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-box::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    transition: background 0.2s;
+  }
+  .stat-box:hover { background: var(--bg2); }
+  .stat-box:hover::after { background: var(--accent); }
+  .stat-label {
+    font-size: 11px; color: var(--text3); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .stat-value {
+    font-size: 30px; font-weight: 700; line-height: 1.1;
+    letter-spacing: -0.02em;
+    animation: statsCount 0.5s ease both;
+  }
+  .stat-sub { font-size: 11px; color: var(--text3); font-weight: 400; }
+  .sv-default { color: var(--text); }
+  .sv-green { color: var(--green); }
+  .sv-yellow { color: var(--yellow); }
+  .sv-red { color: var(--red); }
+  .sv-accent { color: var(--accent); }
+
+  /* ── DETAIL PANEL ── */
+  .detail {
+    flex: 1;
+    padding: 1.75rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    animation: fadeUp 0.45s cubic-bezier(.22,1,.36,1) 0.15s both;
+  }
+
+  .no-selection {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px; color: var(--text3);
+    animation: fadeIn 0.4s ease;
+  }
+  .no-selection svg { opacity: 0.15; }
+  .no-selection p { font-size: 15px; font-weight: 500; }
+  .no-selection span { font-size: 12px; opacity: 0.7; }
+
+  /* ── DRIVER CARD ── */
+  .d-card {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    padding: 1.75rem;
+    animation: cardReveal 0.4s cubic-bezier(.22,1,.36,1) both;
+  }
+
+  .d-header {
+    display: flex; align-items: center; gap: 1.1rem; margin-bottom: 1.5rem;
+  }
+  .d-big-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(.22,1,.36,1);
+    animation: popIn 0.4s cubic-bezier(.22,1,.36,1) both;
+  }
+  .d-big-avatar:hover { transform: scale(1.07) rotate(3deg); }
+
+  .d-header-info { flex: 1; min-width: 0; }
+  .d-header-name {
+    font-size: 20px; font-weight: 700; color: var(--text);
+    margin-bottom: 4px; letter-spacing: 0.01em;
+    animation: fadeUp 0.35s ease 0.05s both;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .d-header-email {
+    font-size: 12px; color: var(--text3); font-weight: 400;
+    margin-bottom: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .d-header-badges {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    animation: fadeUp 0.35s ease 0.1s both;
+  }
+
+  .pill {
+    padding: 4px 13px; border-radius: 99px;
+    font-size: 12px; font-weight: 700;
+    animation: badgePop 0.4s cubic-bezier(.22,1,.36,1) both;
+    letter-spacing: 0.02em;
+  }
+  .pill-green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(31,217,122,0.2); }
+  .pill-yellow { background: var(--yellow-bg); color: var(--yellow); border: 1px solid rgba(245,166,35,0.2); }
+  .pill-red { background: var(--red-bg); color: var(--red); border: 1px solid rgba(240,68,90,0.2); }
+  .pill-gray { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); }
+
+  /* ── RING ── */
+  .perf-section {
+    display: flex; gap: 2rem; align-items: center; margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem; border-bottom: 1px solid var(--border);
+  }
+  .ring-wrap {
+    position: relative; width: 120px; height: 120px; flex-shrink: 0;
+    animation: popIn 0.5s cubic-bezier(.22,1,.36,1) 0.1s both;
+  }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-track { transition: none; }
+  .ring-fill {
+    transition: stroke-dashoffset 0.9s cubic-bezier(.22,1,.36,1),
+                stroke 0.4s ease;
+  }
+  .ring-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .ring-num {
+    font-size: 26px; font-weight: 700; line-height: 1;
+    letter-spacing: -0.02em;
+    transition: color 0.4s ease;
+  }
+  .ring-lbl { font-size: 10px; color: var(--text3); margin-top: 2px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .perf-detail { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .perf-row { display: flex; justify-content: space-between; align-items: center; }
+  .perf-row-label { font-size: 14px; color: var(--text2); font-weight: 400; }
+  .perf-row-val { font-size: 16px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+  .big-bar-wrap {
+    height: 8px; background: var(--bg4); border-radius: 99px; overflow: hidden;
+    margin-top: 4px;
+  }
+  .big-bar {
+    height: 100%; border-radius: 99px;
+    transition: width 0.9s cubic-bezier(.22,1,.36,1), background 0.4s ease;
+  }
+
+  /* ── HISTORY LISTS (orders / misses) ── */
+  .hist-tabs {
+    display: flex; gap: 6px; margin-bottom: 12px;
+  }
+  .htab {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--text2);
+    font-family: var(--font);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(.22,1,.36,1);
+  }
+  .htab:hover { background: var(--bg3); color: var(--text); }
+  .htab.active { background: var(--accent-bg); border-color: rgba(79,127,255,0.3); color: var(--accent); }
+  .htab.h-miss.active { background: var(--red-bg); border-color: rgba(240,68,90,0.3); color: var(--red); }
+  .htab.h-notes.active { background: var(--accent-bg); border-color: rgba(91,138,255,0.3); color: var(--accent); }
+
+  .hist-panel {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    max-height: 280px;
+    overflow-y: auto;
+    margin-bottom: 1.25rem;
+  }
+  .hist-panel[data-tab="notes"] {
+    background: transparent;
+    border: none;
+    max-height: none;
+    overflow-y: visible;
+    padding: 0;
+  }
+  .hist-panel::-webkit-scrollbar { width: 3px; }
+  .hist-panel::-webkit-scrollbar-track { background: transparent; }
+  .hist-panel::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+  .hist-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    animation: rowSlideIn 0.25s ease both;
+  }
+  .hist-row:last-child { border-bottom: none; }
+  .hist-row.clickable { cursor: pointer; transition: background 0.15s; }
+  .hist-row.clickable:hover { background: var(--bg4); }
+  .hist-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .hist-dot.ok { background: var(--green); }
+  .hist-dot.bad { background: var(--red); }
+  .hist-main { flex: 1; min-width: 0; }
+  .hist-title { font-weight: 600; color: var(--text); font-size: 13px; }
+  .hist-sub { font-size: 11.5px; color: var(--text3); margin-top: 2px; }
+  .hist-chevron { color: var(--text3); font-size: 11px; transition: transform 0.2s; flex-shrink: 0; }
+  .hist-row.expanded .hist-chevron { transform: rotate(90deg); }
+  .hist-reason {
+    padding: 0 14px 12px 14px;
+    margin-top: -4px;
+    font-size: 12.5px;
+    color: var(--text2);
+    line-height: 1.6;
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.2s ease;
+  }
+  .hist-reason b { color: var(--red); font-weight: 700; }
+  .hist-empty {
+    padding: 2rem 1rem; text-align: center; color: var(--text3); font-size: 13px;
+  }
+
+  /* ── INPUTS / NOTES TAB ── */
+  /* notes tab panel */
+  .notes-tab-panel { display: flex; flex-direction: column; gap: 14px; }
+
+  /* add-note form */
+  .note-form {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .note-form-row { display: flex; gap: 8px; align-items: center; }
+  .note-title-inp {
+    flex: 1;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .note-title-inp::placeholder { color: var(--text3); font-weight: 400; }
+  .note-title-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,138,255,0.12); }
+
+  .note-body-inp {
+    width: 100%;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.7;
+    resize: vertical;
+    min-height: 80px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .note-body-inp::placeholder { color: var(--text3); font-size: 13px; }
+  .note-body-inp:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(91,138,255,0.12); }
+
+  .btn-add-note {
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: var(--radius);
+    font-family: var(--font);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.12s, background 0.25s;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .btn-add-note:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-add-note:active { transform: scale(0.97); }
+  .btn-add-note.success { background: var(--green); }
+
+  /* saved notes list */
+  .notes-list { display: flex; flex-direction: column; gap: 8px; }
+  .note-card {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: rowSlideIn 0.28s ease both;
+    position: relative;
+  }
+  .note-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .note-card-title { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .note-card-meta { font-size: 11px; color: var(--text3); font-weight: 400; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+  .note-card-body { font-size: 13.5px; color: var(--text2); line-height: 1.65; white-space: pre-wrap; }
+  .btn-del-note {
+    background: none;
+    border: 1px solid rgba(242,77,99,0.2);
+    color: var(--red);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.12s;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .btn-del-note:hover { background: var(--red-bg); transform: scale(1.04); }
+  .notes-empty { text-align: center; padding: 2rem 1rem; color: var(--text3); font-size: 13.5px; }
+
+  /* legacy - keep btn-save for API compat but hide */
+  .save-row { display: none; }
+  .notes-group { display: none; }
+
+  /* ── LEADERBOARD ── */
+  .lb-card {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    animation: fadeUp 0.45s ease 0.05s both;
+  }
+  .lb-head {
+    padding: 1rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .lb-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .lb-subtitle { font-size: 12px; color: var(--text3); font-weight: 400; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  thead th {
+    text-align: right; padding: 10px 1.25rem;
+    font-size: 11px; font-weight: 700; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  thead th:last-child { text-align: left; }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    animation: rowSlideIn 0.3s ease both;
+    transition: background 0.15s, transform 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg3); transform: translateX(-2px); }
+  tbody tr.highlighted { background: var(--accent-bg); }
+  tbody td {
+    padding: 11px 1.25rem;
+    font-size: 14px; color: var(--text); font-weight: 400;
+  }
+  tbody td:last-child { text-align: left; }
+  .rank-num { font-size: 12px; font-weight: 700; color: var(--text3); }
+  .rank-1 { color: #f5a623; }
+  .rank-2 { color: #b8bdd4; }
+  .rank-3 { color: #cd7c4a; }
+  .td-name { font-weight: 600; font-size: 13px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .td-pct { font-weight: 700; font-size: 14px; }
+  .td-bar-wrap { width: 90px; height: 4px; background: var(--bg4); border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 8px; }
+  .td-bar { height: 100%; border-radius: 99px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 10px 20px;
+    font-size: 14px; font-weight: 600;
+    color: var(--green);
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 999;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    .sidebar { width: 260px; min-width: 260px; }
+    .perf-section { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 650px) {
+    .main { flex-direction: column; height: auto; }
+    .sidebar { width: 100%; min-width: unset; border-left: none; border-bottom: 1px solid var(--border); max-height: 340px; }
+    .content { height: auto; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .topbar { padding: 0 1rem; }
+    .detail { padding: 1rem; }
+    .d-card { padding: 1.25rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-dot" id="liveDot"></div>
+    RAWAHEL
+    <span style="font-size:12px;font-weight:500;color:var(--text3);margin-right:2px">/ تقييم المندوبين</span>
+  </div>
+  <div class="topbar-right">
+    <span class="topbar-date" id="topbarDate"></span>
+    <button class="btn-export" onclick="exportCSV()">↓ تصدير CSV</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <h2>المندوبين <span id="countBadge" style="font-size:10px;color:var(--text3)"></span></h2>
+      <div class="search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="ابحث بالاسم..." oninput="renderList()">
+      </div>
+    </div>
+
+    <div class="filter-tabs">
+      <button class="ftab active" onclick="setFilter('all',this)">الكل</button>
+      <button class="ftab f-green" onclick="setFilter('green',this)">ممتاز</button>
+      <button class="ftab f-yellow" onclick="setFilter('yellow',this)">متوسط</button>
+      <button class="ftab f-red" onclick="setFilter('red',this)">ضعيف</button>
+    </div>
+
+    <div class="drivers-list" id="driversList"></div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="stat-label">إجمالي المندوبين</div>
+        <div class="stat-value sv-default" id="s-total">0</div>
+        <div class="stat-sub">مندوب نشط</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">إجمالي الأوردرات</div>
+        <div class="stat-value sv-accent" id="s-orders">0</div>
+        <div class="stat-sub">تراكمي</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">ممتاز ≥ 85%</div>
+        <div class="stat-value sv-green" id="s-green">0</div>
+        <div class="stat-sub">مندوب</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">متوسط 75–84%</div>
+        <div class="stat-value sv-yellow" id="s-yellow">0</div>
+        <div class="stat-sub">مندوب</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">ضعيف &lt; 75%</div>
+        <div class="stat-value sv-red" id="s-red">0</div>
+        <div class="stat-sub">مندوب</div>
+      </div>
+    </div>
+
+    <div class="detail" id="detailArea">
+      <div class="no-selection" id="noSelection">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <p>اختار مندوب من القائمة</p>
+        <span>اضغط على أي اسم عشان تبدأ</span>
+      </div>
+
+      <div class="d-card" id="driverCard" style="display:none">
+        <div class="d-header">
+          <div class="d-big-avatar" id="dcAvatar"></div>
+          <div class="d-header-info">
+            <div class="d-header-name" id="dcName"></div>
+            <div class="d-header-email" id="dcEmail"></div>
+            <div class="d-header-badges">
+              <span class="pill pill-gray" id="dcOrdersPill"></span>
+              <span class="pill pill-gray" id="dcMissPill"></span>
+              <span class="pill" id="dcStatusPill"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="perf-section">
+          <div class="ring-wrap">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle class="ring-track" cx="60" cy="60" r="50" fill="none" stroke="var(--bg4)" stroke-width="10"/>
+              <circle class="ring-fill" id="ringCircle" cx="60" cy="60" r="50" fill="none" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
+            </svg>
+            <div class="ring-center">
+              <div class="ring-num" id="ringNum">–</div>
+              <div class="ring-lbl">الأداء</div>
+            </div>
+          </div>
+          <div class="perf-detail">
+            <div>
+              <div class="perf-row" style="margin-bottom:8px">
+                <span class="perf-row-label">نسبة النجاح</span>
+                <span class="perf-row-val" id="dcPctText">–</span>
+              </div>
+              <div class="big-bar-wrap">
+                <div class="big-bar" id="dcBar" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="perf-row">
+              <span class="perf-row-label">الأوردرات الناجحة</span>
+              <span class="perf-row-val" id="dcSuccess">–</span>
+            </div>
+            <div class="perf-row">
+              <span class="perf-row-label">عدد الـ Miss</span>
+              <span class="perf-row-val" id="dcMissText" style="color:var(--red)">–</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- HISTORY: orders / misses / notes -->
+        <div class="hist-tabs">
+          <button class="htab active" id="htabOrders" onclick="setHistTab('orders')">📦 سجل الأوردرات</button>
+          <button class="htab h-miss" id="htabMiss" onclick="setHistTab('miss')">⛔ سجل الـ Miss</button>
+          <button class="htab h-notes" id="htabNotes" onclick="setHistTab('notes')">📝 الملاحظات</button>
+        </div>
+        <div class="hist-panel" id="histPanel"></div>
+
+        <!-- hidden legacy elements kept for API compat -->
+        <div class="notes-group" style="display:none">
+          <label>ملاحظات</label>
+          <textarea id="inpNotes"></textarea>
+        </div>
+        <div class="save-row" style="display:none">
+          <button class="btn-save" id="btnSave" onclick="saveNotes()">حفظ</button>
+          <span class="save-hint" id="saveHint"></span>
+        </div>
+      </div>
+
+      <div class="lb-card">
+        <div class="lb-head">
+          <div class="lb-title">ترتيب المندوبين</div>
+          <div class="lb-subtitle">حسب نسبة الأداء — اللي عندهم بيانات بس</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:44px">#</th>
+              <th>الاسم</th>
+              <th>الأوردرات</th>
+              <th>Miss</th>
+              <th>الأداء</th>
+              <th>الحالة</th>
+            </tr>
+          </thead>
+          <tbody id="lbBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// إعدادات الاتصال بالسيرفر
+// ============================================================
+const ADMIN_PW = new URLSearchParams(window.location.search).get('pw') || ''; // افتح الصفحة بـ ?pw=...
+const API_BASE = ''; // فاضي = نفس الدومين اللي الصفحة شغالة عليه (لو فتحتها من سيرفر تاني، حط الرابط هنا)
+
+function apiUrl(path) {
+  const sep = path.includes('?') ? '&' : '?';
+  return `${API_BASE}${path}${sep}pw=${encodeURIComponent(ADMIN_PW)}`;
+}
+
+let db = {};          // email -> {email, name, orders[], misses[], notes, orders_count, misses_count}
+let NAMES_BY_EMAIL = []; // [email,...] مرتبة بالاسم
+let activeFilter = 'all';
+let selectedEmail = null;
+let activeHistTab = 'orders';
+let expandedMissIdx = null;
+let notesDirty = false;
+
+const CIRC = 314;
+
+function getPct(d) {
+  if (!d || !d.orders_count) return null;
+  return Math.round(((d.orders_count - d.misses_count) / d.orders_count) * 100);
+}
+function getStatus(pct) {
+  if (pct === null) return { label: 'بدون بيانات', cls: 'pill-gray' };
+  if (pct >= 85) return { label: 'ممتاز', cls: 'pill-green' };
+  if (pct >= 75) return { label: 'متوسط', cls: 'pill-yellow' };
+  return { label: 'ضعيف', cls: 'pill-red' };
+}
+function getBarColor(pct) {
+  if (pct === null) return 'var(--text3)';
+  if (pct >= 85) return 'var(--green)';
+  if (pct >= 75) return 'var(--yellow)';
+  return 'var(--red)';
+}
+
+const PALETTE = ['#4f7fff','#a78bfa','#1fd97a','#f472b6','#fb923c','#60a5fa','#e879f9','#2dd4bf'];
+function getColor(key) {
+  let h = 0;
+  for (let c of key) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  return PALETTE[h % PALETTE.length];
+}
+function initials(name) {
+  const p = name.trim().split(' ');
+  return (p[0][0] + (p[1]?.[0] || '')).toUpperCase();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function setLive(isLive) {
+  document.getElementById('liveDot').classList.toggle('live', isLive);
+}
+
+// ============================================================
+// تحميل البيانات من السيرفر
+// ============================================================
+async function loadAllData(preserveSelection = true) {
+  if (!ADMIN_PW) {
+    document.getElementById('driversList').innerHTML = '<div class="empty-state">⚠️ افتح الصفحة بالرابط الصحيح مع كلمة السر<br><span style="font-size:11px">مثال: rawahel_driver_rating.html?pw=...</span></div>';
+    return;
+  }
+  try {
+    const res = await fetch(apiUrl('/api/rating_data'));
+    if (res.status === 401) {
+      document.getElementById('driversList').innerHTML = '<div class="empty-state">⚠️ كلمة السر غلط</div>';
+      return;
+    }
+    if (!res.ok) throw new Error('فشل تحميل البيانات (' + res.status + ')');
+    const list = await res.json();
+
+    db = {};
+    list.forEach(d => { db[d.email] = d; });
+    NAMES_BY_EMAIL = list.map(d => d.email).sort((a,b) => db[a].name.localeCompare(db[b].name, 'ar'));
+
+    renderStats();
+    renderList();
+    renderLeaderboard();
+
+    if (preserveSelection && selectedEmail && db[selectedEmail]) {
+      refreshSelectedCard();
+    } else if (preserveSelection && selectedEmail && !db[selectedEmail]) {
+      selectedEmail = null;
+      document.getElementById('noSelection').style.display = 'flex';
+      document.getElementById('driverCard').style.display = 'none';
+    }
+  } catch (e) {
+    showToast('⚠️ تعذر الاتصال بالسيرفر');
+    console.error(e);
+  }
+}
+
+// ============================================================
+// عرض القائمة الجانبية
+// ============================================================
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+function renderList() {
+  const q = (document.getElementById('searchInput').value || '').toLowerCase();
+  let list = NAMES_BY_EMAIL.filter(email => db[email].name.toLowerCase().includes(q) || email.toLowerCase().includes(q));
+  if (activeFilter === 'green') list = list.filter(e => { const p = getPct(db[e]); return p !== null && p >= 85; });
+  else if (activeFilter === 'yellow') list = list.filter(e => { const p = getPct(db[e]); return p !== null && p >= 75 && p < 85; });
+  else if (activeFilter === 'red') list = list.filter(e => { const p = getPct(db[e]); return p !== null && p < 75; });
+
+  document.getElementById('countBadge').textContent = `(${list.length})`;
+  const el = document.getElementById('driversList');
+
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-state">مفيش نتايج</div>';
+    return;
+  }
+
+  el.innerHTML = list.map((email, i) => {
+    const d = db[email];
+    const pct = getPct(d);
+    const color = getColor(email);
+    const barColor = getBarColor(pct);
+    const isActive = email === selectedEmail;
+    return `<div class="driver-item${isActive ? ' active' : ''}"
+      style="animation-delay:${i * 0.025}s"
+      onclick="selectDriver('${email.replace(/'/g,"\\'")}')">
+      <div class="d-avatar" style="background:${color}1a;color:${color}">${initials(d.name)}</div>
+      <div class="d-info">
+        <div class="d-name">${d.name}</div>
+        <div class="d-mini">
+          <div class="d-mini-bar-wrap">
+            <div class="d-mini-bar" style="width:${pct ?? 0}%;background:${barColor}"></div>
+          </div>
+          <div class="d-pct" style="color:${barColor}">${pct !== null ? pct + '%' : '–'}</div>
+        </div>
+      </div>
+      <div class="d-badge" style="background:${barColor};${pct===null?'opacity:0.3':''}"></div>
+    </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  const all = NAMES_BY_EMAIL.map(e => db[e]);
+  const withData = all.filter(d => d.orders_count > 0);
+  const totalOrders = all.reduce((s, d) => s + (d.orders_count || 0), 0);
+  const green = withData.filter(d => getPct(d) >= 85).length;
+  const yellow = withData.filter(d => { const p = getPct(d); return p >= 75 && p < 85; }).length;
+  const red = withData.filter(d => getPct(d) < 75).length;
+
+  document.getElementById('s-total').textContent = all.length;
+  document.getElementById('s-orders').textContent = totalOrders;
+  document.getElementById('s-green').textContent = green;
+  document.getElementById('s-yellow').textContent = yellow;
+  document.getElementById('s-red').textContent = red;
+}
+
+function renderLeaderboard() {
+  const ranked = NAMES_BY_EMAIL
+    .map(email => ({ email, name: db[email].name, d: db[email], pct: getPct(db[email]) }))
+    .filter(x => x.pct !== null)
+    .sort((a, b) => b.pct - a.pct);
+
+  const tbody = document.getElementById('lbBody');
+  if (!ranked.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:2rem;font-size:14px">لسه مفيش أوردرات مسجلة</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = ranked.map((x, i) => {
+    const rankCls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+    const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+    const st = getStatus(x.pct);
+    const barColor = getBarColor(x.pct);
+    const isHL = x.email === selectedEmail;
+    return `<tr class="${isHL ? 'highlighted' : ''}" style="animation-delay:${i*0.03}s" onclick="selectDriver('${x.email.replace(/'/g,"\\'")}')">
+      <td><span class="rank-num ${rankCls}">${rankIcon || (i+1)}</span></td>
+      <td><span class="td-name">${x.name}</span></td>
+      <td style="font-weight:600">${x.d.orders_count}</td>
+      <td style="color:var(--red);font-weight:600">${x.d.misses_count}</td>
+      <td>
+        <span class="td-bar-wrap"><span class="td-bar" style="width:${x.pct}%;background:${barColor}"></span></span>
+        <span class="td-pct" style="color:${barColor}">${x.pct}%</span>
+      </td>
+      <td><span class="pill ${st.cls}">${st.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateRingAndBar(pct) {
+  const barColor = getBarColor(pct);
+  const offset = pct !== null ? CIRC - (pct / 100) * CIRC : CIRC;
+  const ring = document.getElementById('ringCircle');
+  ring.style.stroke = barColor;
+  ring.style.strokeDashoffset = offset;
+  document.getElementById('ringNum').textContent = pct !== null ? pct + '%' : '–';
+  document.getElementById('ringNum').style.color = barColor;
+  document.getElementById('dcPctText').textContent = pct !== null ? pct + '%' : '–';
+  document.getElementById('dcBar').style.width = (pct ?? 0) + '%';
+  document.getElementById('dcBar').style.background = barColor;
+}
+
+// ============================================================
+// تفاصيل المندوب
+// ============================================================
+function selectDriver(email) {
+  selectedEmail = email;
+  activeHistTab = 'orders';
+  expandedMissIdx = null;
+
+  const noSel = document.getElementById('noSelection');
+  const card = document.getElementById('driverCard');
+
+  if (noSel.style.display !== 'none') {
+    noSel.style.display = 'none';
+    card.style.display = 'block';
+    void card.offsetWidth;
+  } else {
+    card.style.animation = 'none';
+    void card.offsetWidth;
+    card.style.animation = 'cardReveal 0.35s cubic-bezier(.22,1,.36,1) both';
+  }
+
+  document.getElementById('htabOrders').classList.add('active');
+  document.getElementById('htabMiss').classList.remove('active');
+
+  renderSelectedCard(true);
+  renderList();
+  renderLeaderboard();
+  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function refreshSelectedCard() {
+  // تحديث بدون أنيميشن من الصفر (يستخدم بعد لايف-أبديت)
+  renderSelectedCard(false);
+}
+
+function renderSelectedCard(animateRing) {
+  const d = db[selectedEmail];
+  if (!d) return;
+  const pct = getPct(d);
+  const color = getColor(selectedEmail);
+  const st = getStatus(pct);
+
+  const av = document.getElementById('dcAvatar');
+  av.textContent = initials(d.name);
+  av.style.background = color + '1a';
+  av.style.color = color;
+
+  document.getElementById('dcName').textContent = d.name;
+  document.getElementById('dcEmail').textContent = selectedEmail;
+  document.getElementById('dcOrdersPill').textContent = `${d.orders_count} أوردر`;
+  document.getElementById('dcMissPill').textContent = `${d.misses_count} miss`;
+
+  const sp = document.getElementById('dcStatusPill');
+  sp.textContent = st.label;
+  sp.className = `pill ${st.cls}`;
+
+  if (animateRing) {
+    const ring = document.getElementById('ringCircle');
+    ring.style.transition = 'none';
+    ring.style.strokeDashoffset = CIRC;
+    void ring.offsetWidth;
+    ring.style.transition = 'stroke-dashoffset 0.9s cubic-bezier(.22,1,.36,1), stroke 0.4s ease';
+
+    const bar = document.getElementById('dcBar');
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    void bar.offsetWidth;
+    bar.style.transition = 'width 0.9s cubic-bezier(.22,1,.36,1), background 0.4s ease';
+    setTimeout(() => { bar.style.width = (pct ?? 0) + '%'; }, 20);
+  }
+  updateRingAndBar(pct);
+
+  document.getElementById('dcSuccess').textContent = d.orders_count - d.misses_count;
+  document.getElementById('dcMissText').textContent = d.misses_count;
+
+  renderHistPanel();
+}
+
+function setHistTab(tab) {
+  activeHistTab = tab;
+  expandedMissIdx = null;
+  document.getElementById('htabOrders').classList.toggle('active', tab === 'orders');
+  document.getElementById('htabMiss').classList.toggle('active', tab === 'miss');
+  document.getElementById('htabNotes').classList.toggle('active', tab === 'notes');
+  renderHistPanel();
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateStr;
+}
+
+function renderHistPanel() {
+  const d = db[selectedEmail];
+  if (!d) return;
+  const panel = document.getElementById('histPanel');
+
+  if (activeHistTab === 'orders') {
+    panel.removeAttribute('data-tab');
+    const orders = [...d.orders].reverse();
+    if (!orders.length) {
+      panel.innerHTML = '<div class="hist-empty">لسه مفيش أوردرات مسجلة لهذا المندوب</div>';
+      return;
+    }
+    panel.innerHTML = orders.map((o, i) => `
+      <div class="hist-row" style="animation-delay:${i*0.02}s">
+        <div class="hist-dot ok"></div>
+        <div class="hist-main">
+          <div class="hist-title">أوردر ناجح #${orders.length - i}</div>
+          <div class="hist-sub">${fmtDate(o.date)} — ${o.time ? o.time.split(' ').pop() : ''}</div>
+        </div>
+      </div>
+    `).join('');
+  } else if (activeHistTab === 'miss') {
+    panel.removeAttribute('data-tab');
+    const misses = [...d.misses].reverse();
+    if (!misses.length) {
+      panel.innerHTML = '<div class="hist-empty">الحمدلله، مفيش miss مسجل لهذا المندوب</div>';
+      return;
+    }
+    panel.innerHTML = misses.map((m, i) => `
+      <div class="hist-row clickable${expandedMissIdx === i ? ' expanded' : ''}" onclick="toggleMissReason(${i})" style="animation-delay:${i*0.02}s">
+        <div class="hist-dot bad"></div>
+        <div class="hist-main">
+          <div class="hist-title">أوردر رقم ${esc(m.order_id)}</div>
+          <div class="hist-sub">${fmtDate(m.date)} — ${m.time ? m.time.split(' ').pop() : ''}</div>
+        </div>
+        <div class="hist-chevron">▾</div>
+      </div>
+      ${expandedMissIdx === i ? `<div class="hist-reason"><b>السبب:</b> ${esc(m.reason)}</div>` : ''}
+    `).join('');
+  } else {
+    // Notes tab — show without scroll box constraints
+    panel.setAttribute('data-tab', 'notes');
+    panel.innerHTML = renderNotesTab();
+  }
+}
+
+function renderNotesTab() {
+  const notes = getDriverNotes(selectedEmail);
+  return `
+    <div class="notes-tab-panel">
+      <div class="note-form">
+        <input type="text" class="note-title-inp" id="noteTitle" placeholder="عنوان الملاحظة (مثلاً: تحذير أول)">
+        <textarea class="note-body-inp" id="noteBody" placeholder="اكتب الملاحظة هنا..."></textarea>
+        <div style="display:flex;justify-content:flex-end">
+          <button class="btn-add-note" id="btnAddNote" onclick="addNote()">+ حفظ الملاحظة</button>
+        </div>
+      </div>
+      <div class="notes-list">
+        ${notes.length === 0
+          ? '<div class="notes-empty">لسه مفيش ملاحظات مسجلة لهذا المندوب</div>'
+          : notes.map((n, i) => `
+            <div class="note-card" style="animation-delay:${i*0.04}s">
+              <div class="note-card-header">
+                <div class="note-card-title">${esc(n.title)}</div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <div class="note-card-meta">${n.datetime}</div>
+                  <button class="btn-del-note" onclick="deleteNote(${n.id})">حذف</button>
+                </div>
+              </div>
+              <div class="note-card-body">${esc(n.body)}</div>
+            </div>
+          `).join('')
+        }
+      </div>
+    </div>
+  `;
+}
+
+function toggleMissReason(i) {
+  expandedMissIdx = expandedMissIdx === i ? null : i;
+  renderHistPanel();
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ============================================================
+// الملاحظات — مخزنة محلياً في localStorage مع عنوان + تاريخ
+// ============================================================
+
+function _notesKey(email) { return 'rwhl_notes_v2_' + email; }
+
+function getDriverNotes(email) {
+  try {
+    return JSON.parse(localStorage.getItem(_notesKey(email)) || '[]');
+  } catch { return []; }
+}
+
+function saveDriverNotes(email, notes) {
+  localStorage.setItem(_notesKey(email), JSON.stringify(notes));
+}
+
+function fmtNoteDateTime() {
+  const now = new Date();
+  return now.toLocaleString('ar-EG', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function addNote() {
+  if (!selectedEmail) return;
+  const titleEl = document.getElementById('noteTitle');
+  const bodyEl  = document.getElementById('noteBody');
+  const title = titleEl.value.trim();
+  const body  = bodyEl.value.trim();
+  if (!title && !body) { showToast('⚠️ اكتب العنوان أو الملاحظة'); return; }
+
+  const notes = getDriverNotes(selectedEmail);
+  notes.unshift({
+    id: Date.now(),
+    title: title || '(بدون عنوان)',
+    body,
+    datetime: fmtNoteDateTime()
+  });
+  saveDriverNotes(selectedEmail, notes);
+
+  // feedback
+  const btn = document.getElementById('btnAddNote');
+  if (btn) { btn.textContent = '✓ اتحفظت'; btn.classList.add('success'); }
+  showToast(`✓ تم حفظ الملاحظة`);
+  titleEl.value = '';
+  bodyEl.value  = '';
+
+  // re-render
+  setTimeout(() => renderHistPanel(), 300);
+}
+
+function deleteNote(id) {
+  if (!selectedEmail) return;
+  const notes = getDriverNotes(selectedEmail).filter(n => n.id !== id);
+  saveDriverNotes(selectedEmail, notes);
+  renderHistPanel();
+}
+
+// legacy stubs — kept so nothing breaks
+function onNotesChange() { notesDirty = true; }
+async function saveNotes(silent = false) {}
+
+// ============================================================
+// تصدير CSV
+// ============================================================
+function exportCSV() {
+  const rows = [['الاسم', 'الإيميل', 'الأوردرات', 'Miss', 'ناجح', 'النسبة%', 'الحالة', 'ملاحظات']];
+  NAMES_BY_EMAIL.forEach(email => {
+    const d = db[email];
+    const pct = getPct(d);
+    const st = getStatus(pct);
+    rows.push([d.name, email, d.orders_count, d.misses_count, d.orders_count - d.misses_count, pct ?? '', st.label, d.notes || '']);
+  });
+  const csv = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `rawahel_rating_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('✓ تم تصدير الملف');
+}
+
+// ============================================================
+// لايف Socket.IO — يحصل تحديث تلقائي عند أي miss/order جديد
+// ============================================================
+function initSocket() {
+  try {
+    const socket = io();
+    socket.on('connect', () => setLive(true));
+    socket.on('disconnect', () => setLive(false));
+    socket.on('rating_updated', () => loadAllData(true));
+  } catch (e) {
+    console.warn('Socket.IO غير متاح، هيتم استخدام التحديث الدوري فقط', e);
+  }
+}
+
+// تحديث دوري احتياطي (لو السوكيت اتقطع لأي سبب)
+setInterval(() => loadAllData(true), 30000);
+
+// date
+document.getElementById('topbarDate').textContent = new Date().toLocaleDateString('ar-EG', {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+});
+
+// Ctrl+Enter لحفظ الملاحظات
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.ctrlKey) saveNotes(); });
+
+loadAllData(false);
+initSocket();
+</script>
+</body>
+</html>
