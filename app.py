@@ -27,7 +27,13 @@ except ImportError:
 
 # VAPID keys — generated once, stored in vapid_private.pem next to app.py
 VAPID_PRIVATE_KEY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vapid_private.pem")
-VAPID_PUBLIC_KEY = "BEJKJ4844pqcsmdjM3kZ9k7TRURMYFN0tLSs-Odh8a0m8nGdx_RwX57bZkKmPY0ZvoZDn0XD_hmo3cC1WxJHsv8"
+# لو في Railway — اكتب الـ PEM من الـ env variable
+_vapid_b64 = os.environ.get("VAPID_PRIVATE_KEY_B64")
+if _vapid_b64:
+    import base64 as _b64mod
+    with open(VAPID_PRIVATE_KEY_PATH, "wb") as _vf:
+        _vf.write(_b64mod.b64decode(_vapid_b64))
+VAPID_PUBLIC_KEY = "BITUMkU5H85CCfFNQlGxDZuJcGWJBR4a5qF8-Wndf9s-s96TRmgawjU4ArNU53XSTH486lSaOdTyJdM9vcYYEPs"
 VAPID_CLAIMS = {"sub": "mailto:admin@rwa7el.local"}
 
 app = Flask(__name__)
@@ -2593,7 +2599,7 @@ def asset_links_direct():
             "relation": ["delegate_permission/common.handle_all_urls"],
             "target": {
                 "namespace": "android_app",
-                "package_name": "com.bankai.rwa7el",
+                "package_name": "dev.ngrok_free.waking_expand_manhunt.twa",
                 "sha256_cert_fingerprints": [
                     "7C:75:C5:C6:59:D7:C3:5C:8B:F6:61:9B:D6:C6:95:2B:EC:54:F5:8A:D6:54:97:EF:43:6A:A2:FE:88:1C:A5:29"
                 ]
