@@ -777,50 +777,18 @@ function updateGeofenceUI(distM) {
   }
 }
 
-/* ── GPS THROTTLE ── */
-let _lastEmitTs = 0;
-const GPS_MIN_INTERVAL = 2000; // بعت للسيرفر كل 2 ثانية على الأقل
-const GPS_MAX_ACCURACY = 50;   // تجاهل الـ fix لو الـ accuracy أضعف من 50م
-
+/* ── GPS — بعت كل fix فوراً بدون throttle ── */
 function onGPSPosition(pos) {
   const {latitude:lat, longitude:lng, accuracy, heading, speed, altitude} = pos.coords;
   lastLat = lat; lastLng = lng;
 
-  // لو الـ accuracy ضعيف، حدّث الـ widget بس ومتحسبش مسافة ومتبعتش للسيرفر
-  if (accuracy > GPS_MAX_ACCURACY) {
-    if (window._gpsWidget) window._gpsWidget.textContent = `📍 متصل • دقة ضعيفة (${Math.round(accuracy)}م)`;
-    return;
-  }
-
   const distM = haversineM(lat, lng, BRANCH_LAT, BRANCH_LNG);
-
-  // حدّث الـ widget بالمسافة الحقيقية — دايمًا، حتى لو الـ throttle حاجب الـ emit
-  const distKm = distM >= 1000;
-  const distLabel = distKm ? (distM/1000).toFixed(1)+'كم' : Math.round(distM)+'م';
-  if(window._gpsWidget) window._gpsWidget.textContent = '📍 متصل • ' + distLabel + ' من الفرع';
-
-  // throttle — بعت للسيرفر كل 5 ثواني على الأقل بغض النظر عن الحركة
   const now = Date.now();
-  const timeSince = now - _lastEmitTs;
 
-  if (timeSince < GPS_MIN_INTERVAL) {
-    // تحقق من الجيوفنس بس (بدون emit)
-    if (document.querySelector('.status-badge.out')) {
-      const inRange = distM <= BRANCH_RADIUS_M;
-      if (inRange && !insideRangeTimer && !returnReady) {
-        insideRangeTimer = setTimeout(() => { returnReady = true; insideRangeTimer = null; updateGeofenceUI(distM); }, GEOFENCE_STABLE_SEC * 1000);
-        insideRangeTimer._startTime = Date.now();
-      } else if (!inRange) {
-        returnReady = false;
-        if (insideRangeTimer) { clearTimeout(insideRangeTimer); insideRangeTimer = null; }
-      }
-      updateGeofenceUI(distM);
-    }
-    return;
-  }
+  // حدّث الـ widget دايماً
+  if(window._gpsWidget) window._gpsWidget.textContent = '📍 متصل • ' + Math.round(distM) + 'م من الفرع';
 
-  _lastEmitTs = now;
-
+  // بعت للسيرفر كل fix فوراً
   socket.emit('update_location', {
     name: driverName, lat, lng,
     accuracy: Math.round(accuracy),

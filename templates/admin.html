@@ -1059,8 +1059,8 @@ const PW = "{{ admin_pw }}";
 // ═══════════════════════════════════════════════
 // 📍 إحداثيات الفرع — غيّرها لو الفرع اتغيّر
 // ═══════════════════════════════════════════════
-const BRANCH_LAT = 31.2071723;  // خط العرض — نفس join.html
-const BRANCH_LNG = 29.9328715;  // خط الطول — نفس join.html
+const BRANCH_LAT = 31.215051;   // خط العرض
+const BRANCH_LNG = 29.948776;   // خط الطول
 
 function haversineM(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -1070,36 +1070,22 @@ function haversineM(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-// render badge — يقبل dist_m مباشرة أو (lat, lng) fallback
-function distBadgeHtml(dist_m_or_lat, lng) {
-  let m;
-  if (lng !== undefined) {
-    const lat = dist_m_or_lat;
-    m = (lat == null || lng == null) ? null : haversineM(BRANCH_LAT, BRANCH_LNG, lat, lng);
-  } else {
-    m = (dist_m_or_lat != null) ? Number(dist_m_or_lat) : null;
-  }
-  if (m == null || isNaN(m)) return '<span class="dist-badge none">📍 —</span>';
+function distBadgeHtml(lat, lng) {
+  if (lat == null || lng == null) return '<span class="dist-badge none">📍 —</span>';
   const m = haversineM(BRANCH_LAT, BRANCH_LNG, lat, lng);
   let cls, label;
-  if (m < 500)        { cls = 'near'; label = m < 50 ? 'في الفرع' : Math.round(m) + ' م'; }
+  if (m < 500)        { cls = 'near'; label = Math.round(m) + ' م'; }
   else if (m < 2000)  { cls = 'mid';  label = Math.round(m) + ' م'; }
   else                { cls = 'far';  label = (m/1000).toFixed(1) + ' كم'; }
   return `<span class="dist-badge ${cls}">📍 ${label}</span>`;
 }
 
-function updateDistBadge(name, dist_m_or_lat, lng) {
-  let m;
-  if (lng !== undefined) {
-    const lat = dist_m_or_lat;
-    m = (lat == null || lng == null) ? null : haversineM(BRANCH_LAT, BRANCH_LNG, lat, lng);
-  } else {
-    m = (dist_m_or_lat != null) ? Number(dist_m_or_lat) : null;
-  }
+function updateDistBadge(name, lat, lng) {
   document.querySelectorAll(`[data-driver-name="${CSS.escape(name)}"] .dist-badge`).forEach(el => {
-    if (m == null || isNaN(m)) { el.className = 'dist-badge none'; el.textContent = '📍 —'; return; }
+    const m = (lat == null || lng == null) ? null : haversineM(BRANCH_LAT, BRANCH_LNG, lat, lng);
+    if (m == null) { el.className = 'dist-badge none'; el.textContent = '📍 —'; return; }
     let cls, label;
-    if (m < 500)       { cls = 'near'; label = m < 50 ? 'في الفرع' : Math.round(m) + ' م'; }
+    if (m < 500)       { cls = 'near'; label = Math.round(m) + ' م'; }
     else if (m < 2000) { cls = 'mid';  label = Math.round(m) + ' م'; }
     else               { cls = 'far';  label = (m/1000).toFixed(1) + ' كم'; }
     el.className = `dist-badge ${cls}`;
@@ -1754,10 +1740,7 @@ async function exportFines() {
 
 // 📍 تحديث مسافة المندوب عن الفرع لحظياً بدون re-render
 socket.on('location_updated', function(data) {
-  if (!data || !data.name) return;
-  // dist_m جاهز من السيرفر — لو مش موجود ارجع لل haversine
-  if (data.dist_m != null) updateDistBadge(data.name, data.dist_m);
-  else updateDistBadge(data.name, data.lat, data.lng);
+  if (data && data.name) updateDistBadge(data.name, data.lat, data.lng);
 });
 
 // 🔋 تحديث نسبة شحن المندوب لحظياً بدون re-render
