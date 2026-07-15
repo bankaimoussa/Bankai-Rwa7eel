@@ -2599,7 +2599,7 @@ def asset_links_direct():
             "relation": ["delegate_permission/common.handle_all_urls"],
             "target": {
                 "namespace": "android_app",
-                "package_name": "dev.ngrok_free.waking_expand_manhunt.twa",
+                "package_name": "com.bankai.rwa7el",
                 "sha256_cert_fingerprints": [
                     "7C:75:C5:C6:59:D7:C3:5C:8B:F6:61:9B:D6:C6:95:2B:EC:54:F5:8A:D6:54:97:EF:43:6A:A2:FE:88:1C:A5:29"
                 ]
