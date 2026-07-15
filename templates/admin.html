@@ -1070,33 +1070,27 @@ function haversineM(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-function distBadgeHtml(lat, lng) {
-  if (lat == null || lng == null) return '<span class="dist-badge none">📍 —</span>';
-  const m = haversineM(BRANCH_LAT, BRANCH_LNG, lat, lng);
+// تحويل مسافة بالمتر → HTML badge
+function _distBadgeFromM(m) {
+  if (m == null) return '<span class="dist-badge none">📍 —</span>';
   let cls, label;
-  if (m < 500)        { cls = 'near'; label = m < 50 ? 'في الفرع' : Math.round(m) + ' م'; }
-  else if (m < 2000)  { cls = 'mid';  label = Math.round(m) + ' م'; }
-  else                { cls = 'far';  label = (m/1000).toFixed(1) + ' كم'; }
+  if (m < 500)       { cls = 'near'; label = m < 50 ? 'في الفرع' : Math.round(m) + ' م'; }
+  else if (m < 2000) { cls = 'mid';  label = Math.round(m) + ' م'; }
+  else               { cls = 'far';  label = (m/1000).toFixed(1) + ' كم'; }
   return `<span class="dist-badge ${cls}">📍 ${label}</span>`;
 }
 
-function updateDistBadge(name, lat, lng) {
-  document.querySelectorAll(`[data-driver-name="${CSS.escape(name)}"] .dist-badge`).forEach(el => {
-    const m = (lat == null || lng == null) ? null : haversineM(BRANCH_LAT, BRANCH_LNG, lat, lng);
-    if (m == null) { el.className = 'dist-badge none'; el.textContent = '📍 —'; return; }
-    let cls, label;
-    if (m < 500)       { cls = 'near'; label = m < 50 ? 'في الفرع' : Math.round(m) + ' م'; }
-    else if (m < 2000) { cls = 'mid';  label = Math.round(m) + ' م'; }
-    else               { cls = 'far';  label = (m/1000).toFixed(1) + ' كم'; }
-    el.className = `dist-badge ${cls}`;
-    el.textContent = '📍 ' + label;
-  });
+// وقت الـ render — بياخد dist_m الجاهز من الـ API مباشرة
+function distBadgeHtml(dist_m) {
+  return _distBadgeFromM(dist_m != null ? dist_m : null);
 }
 
-// نفس الـ updateDistBadge بس بياخد dist_m جاهز بدل lat/lng
-function updateDistBadgeDirect(name, m) {
+// تحديث live بدون re-render
+function updateDistBadge(name, dist_m) {
   document.querySelectorAll(`[data-driver-name="${CSS.escape(name)}"] .dist-badge`).forEach(el => {
+    if (dist_m == null) { el.className = 'dist-badge none'; el.textContent = '📍 —'; return; }
     let cls, label;
+    const m = dist_m;
     if (m < 500)       { cls = 'near'; label = m < 50 ? 'في الفرع' : Math.round(m) + ' م'; }
     else if (m < 2000) { cls = 'mid';  label = Math.round(m) + ' م'; }
     else               { cls = 'far';  label = (m/1000).toFixed(1) + ' كم'; }
@@ -1753,13 +1747,8 @@ async function exportFines() {
 // 📍 تحديث مسافة المندوب عن الفرع لحظياً بدون re-render
 socket.on('location_updated', function(data) {
   if (!data || !data.name) return;
-  // استخدم dist_m الجاهز من الـ driver (محسوب بالفعل في join.html)
-  // لو مش موجود، ارجع للـ haversine fallback
-  if (data.dist_m != null) {
-    updateDistBadgeDirect(data.name, data.dist_m);
-  } else {
-    updateDistBadge(data.name, data.lat, data.lng);
-  }
+  // dist_m جاهز من السيرفر (محسوب في join.html وموجود في broadcast)
+  updateDistBadge(data.name, data.dist_m != null ? data.dist_m : null);
 });
 
 // 🔋 تحديث نسبة شحن المندوب لحظياً بدون re-render
@@ -2378,7 +2367,7 @@ async function load(){
             <div class="d-pos">${i===0?'★':'#'+(i+1)}</div>
             <div class="d-info">
               <div class="d-name">${esc(x.name)}${mb}${rb}</div>
-              <div class="d-time">⏰ ${x.created} ${distBadgeHtml(x.lat, x.lng)} ${batBadgeHtml(x.battery, !!x.charging)}</div>
+              <div class="d-time">⏰ ${x.created} ${distBadgeHtml(x.dist_m)} ${batBadgeHtml(x.battery, !!x.charging)}</div>
             </div>
             <div class="d-icons"><button class="btn-notify" title="إشعار الطيار" onclick="notifyDriver('${esc(x.name)}',this)">🔔</button><button class="btn-flag ${flaggedDrivers.has(x.id)?'':''}` + `" title="Flag driver" onclick="toggleFlag(${x.id},this)">⚑</button><button class="btn-rename" title="Edit" onclick="renameDriver(${x.id},'${esc(x.name)}')">✎</button></div>
           </div>
@@ -2406,7 +2395,7 @@ async function load(){
         <div class="card-top">
           <div class="d-info">
             <div class="d-name">${esc(x.name)}${mb}${rb}</div>
-            <div class="d-time">⏱️ ${x.out_time||'—'} <span style="margin:0 4px">•</span> <span class="sw" data-since="${x.out_time||''}">00:00</span> ${distBadgeHtml(x.lat, x.lng)} ${batBadgeHtml(x.battery, !!x.charging)}</div>
+            <div class="d-time">⏱️ ${x.out_time||'—'} <span style="margin:0 4px">•</span> <span class="sw" data-since="${x.out_time||''}">00:00</span> ${distBadgeHtml(x.dist_m)} ${batBadgeHtml(x.battery, !!x.charging)}</div>
           </div>
           <div class="d-icons"><button class="btn-rename" title="Edit" onclick="renameDriver(${x.id},'${esc(x.name)}')">✎</button></div>
         </div>
@@ -2435,7 +2424,7 @@ async function load(){
         let hh=String(Math.floor(r/3600)).padStart(2,'0'),mm=String(Math.floor((r%3600)/60)).padStart(2,'0'),ss=String(r%60).padStart(2,'0');
         bh+=`<div class="break-card" data-id="${x.id}" data-driver-name="${esc(x.name)}" style="animation-delay: ${i*0.03}s">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <div class="brk-name" style="flex:1">${esc(x.name)} ${distBadgeHtml(x.lat, x.lng)} ${batBadgeHtml(x.battery, !!x.charging)}</div>
+            <div class="brk-name" style="flex:1">${esc(x.name)} ${distBadgeHtml(x.dist_m)} ${batBadgeHtml(x.battery, !!x.charging)}</div>
             <div class="d-icons"><button class="btn-rename" title="Edit" onclick="renameDriver(${x.id},'${esc(x.name)}')">✎</button></div>
           </div>
           <div class="brk-timer${r<300?' urgent':''}" id="bd-${x.id}">${hh}:${mm}:${ss}</div>

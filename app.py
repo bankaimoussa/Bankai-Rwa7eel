@@ -545,12 +545,10 @@ def handle_location(data):
         db.execute("UPDATE drivers SET lat=?, lng=? WHERE name=?", (lat, lng, name))
         db.commit()
         db.close()
-        dist_m = data.get('dist_m')
         emit('location_updated', {
             'name': name, 'lat': lat, 'lng': lng,
             'accuracy': accuracy, 'heading': heading,
-            'speed': speed, 'altitude': altitude,
-            'dist_m': dist_m, 'ts': ts
+            'speed': speed, 'altitude': altitude, 'ts': ts
         }, broadcast=True)
 
 @socketio.on('request_battery_from_all')
@@ -657,6 +655,21 @@ def lst():
     db = con()
     rows = [dict(x) for x in db.execute("SELECT * FROM drivers ORDER BY sort_order, id")]
     db.close()
+    # احسب dist_m لكل طيار عنده lat/lng
+    import math
+    BRANCH_LAT, BRANCH_LNG = 31.2071723, 29.9328715
+    def _hav(lat1, lng1, lat2, lng2):
+        R = 6371000
+        p1, p2 = math.radians(lat1), math.radians(lat2)
+        dp = math.radians(lat2 - lat1)
+        dl = math.radians(lng2 - lng1)
+        a = math.sin(dp/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+        return 2 * R * math.asin(math.sqrt(a))
+    for r in rows:
+        if r.get('lat') and r.get('lng'):
+            r['dist_m'] = round(_hav(r['lat'], r['lng'], BRANCH_LAT, BRANCH_LNG))
+        else:
+            r['dist_m'] = None
     return jsonify(rows)
 
 @app.route("/api/orders_list")
