@@ -58,14 +58,12 @@ with con() as db:
         break_pause_started TEXT,
         misses INTEGER DEFAULT 0,
         returns INTEGER DEFAULT 0,
-        lat REAL,
-        lng REAL,
         battery INTEGER,
         charging INTEGER DEFAULT 0
     )""")
-    for col in ["sort_order INTEGER DEFAULT 0", "break_start TEXT", "break_paused INTEGER DEFAULT 0", 
+    for col in ["sort_order INTEGER DEFAULT 0", "break_start TEXT", "break_paused INTEGER DEFAULT 0",
                  "break_paused_accum INTEGER DEFAULT 0", "break_pause_started TEXT",
-                 "misses INTEGER DEFAULT 0", "returns INTEGER DEFAULT 0", "lat REAL", "lng REAL",
+                 "misses INTEGER DEFAULT 0", "returns INTEGER DEFAULT 0",
                  "battery INTEGER", "charging INTEGER DEFAULT 0"]:
         try:
             db.execute(f"ALTER TABLE drivers ADD COLUMN {col}")
@@ -540,11 +538,8 @@ def handle_location(data):
     speed = data.get('speed')
     altitude = data.get('altitude')
     ts = data.get('ts')
+    # ✅ Live-only GPS — مش بيتخزنش في الـ DB، بس بيتبعت لكل المتصلين فوراً
     if name and lat and lng:
-        db = con()
-        db.execute("UPDATE drivers SET lat=?, lng=? WHERE name=?", (lat, lng, name))
-        db.commit()
-        db.close()
         emit('location_updated', {
             'name': name, 'lat': lat, 'lng': lng,
             'accuracy': accuracy, 'heading': heading,
@@ -655,13 +650,9 @@ def lst():
     db = con()
     rows = [dict(x) for x in db.execute("SELECT * FROM drivers ORDER BY sort_order, id")]
     db.close()
-    import math
-    _BLAT, _BLNG = 31.2071723, 29.9328715
-    def _hav(a, b, c, d):
-        R=6371000; p1,p2=math.radians(a),math.radians(c)
-        return 2*R*math.asin(math.sqrt(math.sin(math.radians(c-a)/2)**2+math.cos(p1)*math.cos(p2)*math.sin(math.radians(d-b)/2)**2))
+    # ✅ dist_m مش بيتحسب من DB — الـ GPS live بس (بيجي من location_updated socket)
     for r in rows:
-        r["dist_m"] = round(_hav(r["lat"], r["lng"], _BLAT, _BLNG)) if r.get("lat") and r.get("lng") else None
+        r["dist_m"] = None
     return jsonify(rows)
 
 @app.route("/api/orders_list")
@@ -1684,14 +1675,14 @@ def compute_stats(db, name):
     orders_row = db.execute("SELECT orders FROM driver_orders WHERE name=?", (name,)).fetchone()
     orders = orders_row["orders"] if orders_row else 0
     driver_row = db.execute(
-        "SELECT misses, returns, battery, charging, lat, lng FROM drivers WHERE name=?", (name,)
+        "SELECT misses, returns, battery, charging FROM drivers WHERE name=?", (name,)
     ).fetchone()
     misses   = driver_row["misses"]   if driver_row else 0
     returns  = driver_row["returns"]  if driver_row else 0
     battery  = driver_row["battery"]  if driver_row else None
     charging = bool(driver_row["charging"]) if driver_row else False
-    lat      = driver_row["lat"]      if driver_row else None
-    lng      = driver_row["lng"]      if driver_row else None
+    lat      = None
+    lng      = None
     def score(o, m): return o * 10 - m * 25
     my_score = score(orders, misses)
     all_drivers = db.execute("""
